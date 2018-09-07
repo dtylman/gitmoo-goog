@@ -2,17 +2,26 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"os"
 
+	"github.com/dtylman/photos/downloader"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/api/photoslibrary/v1"
+	photoslibrary "google.golang.org/api/photoslibrary/v1"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
+
+var options struct {
+	loop    bool
+	logfile string
+}
 
 // Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config) *http.Client {
@@ -66,48 +75,52 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-func main() {
+func process() error {
 	b, err := ioutil.ReadFile("credentials.json")
 	if err != nil {
 		log.Println("Enable photos API here: https://developers.google.com/photos/library/guides/get-started#enable-the-api")
-		log.Fatalf("Unable to read client secret file: %v", err)
-
+		return fmt.Errorf("Unable to read client secret file: %v", err)
 	}
 
 	//request photos readonly access
 	config, err := google.ConfigFromJSON(b, "https://www.googleapis.com/auth/photoslibrary.readonly")
 	if err != nil {
-		log.Fatalf("Unable to parse client secret file to config: %v", err)
+		return fmt.Errorf("Unable to parse client secret file to config: %v", err)
 	}
 	client := getClient(config)
-
+	log.Printf("Connecting ...")
 	srv, err := photoslibrary.New(client)
 	if err != nil {
-		log.Fatalf("Unable to retrieve Sheets client: %v", err)
+		return fmt.Errorf("Unable to retrieve Sheets client: %v", err)
 	}
-	req := &photoslibrary.SearchMediaItemsRequest{PageSize: 50}
-	items, err := srv.MediaItems.Search(req).Do()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	for _, m := range items.MediaItems {
-		log.Printf("%v: %v", m.Id, m.MediaMetadata.CreationTime)
-	}
-	pageToken := ""
-	hasMore := true
-	for hasMore {
-		albums, err := srv.Albums.List().PageSize(50).PageToken(pageToken).Do()
+	for true {
+		err := downloader.DownloadAll(srv)
 		if err != nil {
-			log.Println(err)
-			continue
+			return err
 		}
-		for _, a := range albums.Albums {
-			log.Println(a.Title)
-		}
-		pageToken = albums.NextPageToken
-		if pageToken == "" {
-			hasMore = false
+		if !options.loop {
+			break
 		}
 	}
+	return nil
+}
 
+func main() {
+	flag.BoolVar(&options.loop, "loop", false, "loops forever (use as daemon)")
+	flag.StringVar(&options.logfile, "logfile", "", "log to this file")
+	flag.StringVar(&downloader.Options.BackupFolder, "folder", "", "backup folder")
+	flag.IntVar(&downloader.Options.MaxItems, "max", math.MaxInt32, "max items to download")
+	flag.IntVar(&downloader.Options.Throttle, "throttle", 5, "Time, in seconds, to wait between API calls")
+	flag.Parse()
+	if options.logfile != "" {
+		log.SetOutput(&lumberjack.Logger{
+			Filename:   options.logfile,
+			MaxSize:    500, // megabytes
+			MaxBackups: 3,
+		})
+	}
+	err := process()
+	if err != nil {
+		log.Println(err)
+	}
 }
