@@ -19,8 +19,9 @@ import (
 )
 
 var options struct {
-	loop    bool
-	logfile string
+	loop         bool
+	logfile      string
+	ignoreerrors bool
 }
 
 // Retrieve a token, saves the token, then returns the generated client.
@@ -96,7 +97,11 @@ func process() error {
 	for true {
 		err := downloader.DownloadAll(srv)
 		if err != nil {
-			return err
+			if options.ignoreerrors {
+				log.Println(err)
+			} else {
+				return err
+			}
 		}
 		if !options.loop {
 			break
@@ -107,6 +112,7 @@ func process() error {
 
 func main() {
 	flag.BoolVar(&options.loop, "loop", false, "loops forever (use as daemon)")
+	flag.BoolVar(&options.ignoreerrors, "force", false, "ignore errors, and force working")
 	flag.StringVar(&options.logfile, "logfile", "", "log to this file")
 	flag.StringVar(&downloader.Options.BackupFolder, "folder", "", "backup folder")
 	flag.IntVar(&downloader.Options.MaxItems, "max", math.MaxInt32, "max items to download")
