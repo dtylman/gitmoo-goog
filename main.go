@@ -18,6 +18,9 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+//Version is the version number
+const Version = "0.1"
+
 var options struct {
 	loop         bool
 	logfile      string
@@ -111,6 +114,7 @@ func process() error {
 }
 
 func main() {
+	log.Println("This is gitmoo-goog ver", Version)
 	flag.BoolVar(&options.loop, "loop", false, "loops forever (use as daemon)")
 	flag.BoolVar(&options.ignoreerrors, "force", false, "ignore errors, and force working")
 	flag.StringVar(&options.logfile, "logfile", "", "log to this file")
@@ -124,6 +128,11 @@ func main() {
 			MaxSize:    500, // megabytes
 			MaxBackups: 3,
 		})
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println(r)
+			}
+		}()
 	}
 	err := process()
 	if err != nil {
