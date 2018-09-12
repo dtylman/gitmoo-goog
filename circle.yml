@@ -17,7 +17,7 @@ jobs:
     #### expecting it in the form of
     ####   /go/src/github.com/circleci/go-tool
     ####   /go/src/bitbucket.org/circleci/go-tool
-    working_directory: /go/src/github.com/dtylman/photos
+    working_directory: /go/src/github.com/dtylman/gitmoo-goog
     steps:
       - checkout
 
@@ -28,7 +28,7 @@ jobs:
       - run: go build
       
       - store_artifacts:
-          path: /go/src/github.com/dtylman/photos/photos
+          path: /go/src/github.com/dtylman/gitmoo-goog/gitmoo-goog
       
       - store_artifacts:
-          path: /go/src/github.com/dtylman/photos/photos.exe
+          path: /go/src/github.com/dtylman/gitmoo-goog/gitmoo-goog.exe
