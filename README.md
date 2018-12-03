@@ -10,7 +10,10 @@ It can be used as a daemon to keep in sync with a google-photos account.
 
 ## Downloading and Installing:
 
-Download [Linux](https://github.com/dtylman/gitmoo-goog/releases/download/0.21/gitmoo-goog.bz2) or [Windows](https://github.com/dtylman/gitmoo-goog/releases/download/0.21/gitmoo-goog.zip).
+Download:
+* [Linux](https://github.com/dtylman/gitmoo-goog/releases/download/0.21/gitmoo-goog.bz2) 
+* [Windows](https://github.com/dtylman/gitmoo-goog/releases/download/0.21/gitmoo-goog.zip)
+* [MacOS](https://github.com/dtylman/gitmoo-goog/releases/download/0.21/gitmoo-goog.gz)
 
 Unzip and run, there are no other dependencies.
 
