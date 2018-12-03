@@ -24,6 +24,8 @@ var Options struct {
 	BackupFolder string
 	//MaxItems how many items to download
 	MaxItems int
+	//number of items to download on per API call
+	PageSize int
 	//Throtthle is time to wait between API calls
 	Throttle int
 	//Google photos AlbumID
@@ -132,7 +134,7 @@ func DownloadAll(svc *photoslibrary.Service) error {
 	stats.errors = 0
 	stats.total = 0
 	stats.totalsize = 0
-	req := &photoslibrary.SearchMediaItemsRequest{PageSize: int64(Options.MaxItems), AlbumId: Options.AlbumID}
+	req := &photoslibrary.SearchMediaItemsRequest{PageSize: int64(Options.PageSize), AlbumId: Options.AlbumID}
 	for hasMore {
 		sleepTime := time.Duration(time.Second * time.Duration(Options.Throttle))
 		log.Printf("Processed: %v, Downloaded: %v, Errors: %v, Total Size: %v, Waiting %v", stats.total, stats.downloaded, stats.errors, humanize.Bytes(stats.totalsize), sleepTime)

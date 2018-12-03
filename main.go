@@ -19,7 +19,7 @@ import (
 )
 
 //Version is the version number
-const Version = "0.2"
+const Version = "0.21"
 
 var options struct {
 	loop         bool
@@ -121,6 +121,7 @@ func main() {
 	flag.StringVar(&downloader.Options.BackupFolder, "folder", "", "backup folder")
 	flag.StringVar(&downloader.Options.AlbumID, "album", "", "download only from this album (use google album id)")
 	flag.IntVar(&downloader.Options.MaxItems, "max", math.MaxInt32, "max items to download")
+	flag.IntVar(&downloader.Options.PageSize, "pagesize", 50, "number of items to download on per API call")
 	flag.IntVar(&downloader.Options.Throttle, "throttle", 5, "Time, in seconds, to wait between API calls")
 
 	flag.Parse()
