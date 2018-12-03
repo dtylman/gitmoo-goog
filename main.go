@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/dtylman/photos/downloader"
+	"github.com/dtylman/gitmoo-goog/downloader"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -19,7 +19,7 @@ import (
 )
 
 //Version is the version number
-const Version = "0.1"
+const Version = "0.2"
 
 var options struct {
 	loop         bool
@@ -119,8 +119,10 @@ func main() {
 	flag.BoolVar(&options.ignoreerrors, "force", false, "ignore errors, and force working")
 	flag.StringVar(&options.logfile, "logfile", "", "log to this file")
 	flag.StringVar(&downloader.Options.BackupFolder, "folder", "", "backup folder")
+	flag.StringVar(&downloader.Options.AlbumID, "album", "", "download only from this album (use google album id)")
 	flag.IntVar(&downloader.Options.MaxItems, "max", math.MaxInt32, "max items to download")
 	flag.IntVar(&downloader.Options.Throttle, "throttle", 5, "Time, in seconds, to wait between API calls")
+
 	flag.Parse()
 	if options.logfile != "" {
 		log.SetOutput(&lumberjack.Logger{
