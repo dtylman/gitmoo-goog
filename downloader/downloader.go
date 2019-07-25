@@ -85,7 +85,7 @@ func createJSON(item *photoslibrary.MediaItem, fileName string) error {
 func createImage(item *photoslibrary.MediaItem, fileName string) error {
 	_, err := os.Stat(fileName)
 	if os.IsNotExist(err) {
-		url := fmt.Sprintf("%v=w%v-h%v-d", item.BaseUrl, item.MediaMetadata.Width, item.MediaMetadata.Height)
+		url := fmt.Sprintf("%v=d", item.BaseUrl)
 		output, err := os.Create(fileName)
 		if err != nil {
 			return err
