@@ -54,6 +54,8 @@ This is probably not what you want, hit `crt-c` to stop it.
 
 ```
 Usage of ./gitmoo-goog:
+  - album
+        download only from this album (use google album id)
   -folder string
         backup folder
   -force
@@ -64,6 +66,8 @@ Usage of ./gitmoo-goog:
         loops forever (use as daemon)
   -max int
         max items to download (default 2147483647)
+  -pagesize int
+        number of items to download on per API call (default 50)
   -throttle int
         Time, in seconds, to wait between API calls (default 5)
 ```
