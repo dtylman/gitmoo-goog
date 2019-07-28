@@ -19,7 +19,7 @@ import (
 )
 
 //Version is the version number
-const Version = "0.21"
+const Version = "0.22"
 
 var options struct {
 	loop         bool
