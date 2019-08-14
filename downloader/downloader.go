@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -85,7 +86,12 @@ func createJSON(item *photoslibrary.MediaItem, fileName string) error {
 func createImage(item *photoslibrary.MediaItem, fileName string) error {
 	_, err := os.Stat(fileName)
 	if os.IsNotExist(err) {
-		url := fmt.Sprintf("%v=w%v-h%v", item.BaseUrl, item.MediaMetadata.Width, item.MediaMetadata.Height)
+		var url string
+		if strings.HasPrefix(strings.ToLower(item.MimeType), "video") {
+			url = item.BaseUrl + "=dv"
+		} else {
+			url = fmt.Sprintf("%v=w%v-h%v", item.BaseUrl, item.MediaMetadata.Width, item.MediaMetadata.Height)
+		}
 		output, err := os.Create(fileName)
 		if err != nil {
 			return err
@@ -123,7 +129,6 @@ func downloadItem(svc *photoslibrary.Service, item *photoslibrary.MediaItem) err
 	if err != nil {
 		return err
 	}
-
 	return createImage(item, imageName)
 }
 
