@@ -7,7 +7,6 @@ require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/googleapis/gax-go v0.0.0-20161107002406-da06d194a00e // indirect
-	github.com/h2non/filetype v1.0.9
 	golang.org/x/net v0.0.0-20190603091049-60506f45cf65
 	golang.org/x/oauth2 v0.0.0-20161130174631-f6093e37b6cb
 	google.golang.org/api v0.0.0-20180811000443-0aa0a1f2c0c4
