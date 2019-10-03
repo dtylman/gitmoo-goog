@@ -1,22 +1,21 @@
 package downloader
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
-	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+	"encoding/json"
 
 	"github.com/dustin/go-humanize"
 	photoslibrary "google.golang.org/api/photoslibrary/v1"
+	gensupport "google.golang.org/api/gensupport"
 )
 
 //Options defines downloader options
@@ -40,59 +39,120 @@ var stats struct {
 	downloaded int
 }
 
-func getFileNameByTime(item *photoslibrary.MediaItem) (string, error) {
+//LibraryItem Google Photo item and meta data
+type LibraryItem struct {
+	//Google Photos item
+	Item *photoslibrary.MediaItem
+
+	//Actual file name that was used, without a path
+	UsedFileName string
+}
+
+//MarshalJSON Convert LibraryItem to JSON utlizing pre-built Google marshalling
+func (s *LibraryItem) MarshalJSON() ([]byte, error) {
+	type NoMethod LibraryItem
+	raw := NoMethod(*s)
+	return gensupport.MarshalJSON(raw, []string{}, []string{})
+}
+
+// getFolderPath Path of the to store JSON and image files for the particular MediaItem
+func getFolderPath(item *photoslibrary.MediaItem) string {
+	backupFolder := Options.BackupFolder
+	if backupFolder == "" {
+		backupFolder, _ = os.Getwd()
+	}
+
 	t, err := time.Parse(time.RFC3339, item.MediaMetadata.CreationTime)
+	year, month := "", ""
 	if err != nil {
-		log.Println(err)
-		return "", err
+		year = "1970"
+		month = "01"
+	} else {
+		year = strconv.Itoa(t.Year())
+		month = fmt.Sprintf("%02d", t.Month())
 	}
-	year := strconv.Itoa(t.Year())
-	month := t.Month().String()
-	name := fmt.Sprintf("%v_%v", t.Day(), item.Id[len(item.Id)-8:])
-	return filepath.Join(Options.BackupFolder, year, month, name), nil
-}
-func getFileNameByHash(item *photoslibrary.MediaItem) string {
-	hasher := md5.New()
-	hasher.Write([]byte(item.Id))
-	hash := hex.EncodeToString(hasher.Sum(nil))
-	return filepath.Join(Options.BackupFolder, hash[:4], hash[4:8], hash[8:])
+	return filepath.Join(backupFolder, year, month)
 }
 
-func getFileName(item *photoslibrary.MediaItem) string {
-	fileName, err := getFileNameByTime(item)
-	if err != nil {
-		fileName = getFileNameByHash(item)
+// createFileName Get the full path to the image file including what conflict position we are at
+func createFileName(item *LibraryItem, conflict int) string {
+	fileName := getImageFilePath(item)
+	if conflict > 0 {
+		fileExtension := filepath.Ext(fileName)
+		index := strings.LastIndex(fileName, fileExtension)
+		fileName = fileName[0:index] + " (" + fmt.Sprintf("%d", conflict) + ")" + fileExtension
 	}
-	return fileName
+
+	return filepath.Base(fileName);
 }
 
-func createJSON(item *photoslibrary.MediaItem, fileName string) error {
-	_, err := os.Stat(fileName)
+// isConflictingFilePath Check if the image file already exists
+func isConflictingFilePath(item *LibraryItem) bool {
+	_, err := os.Stat(getImageFilePath(item))
+
+	return err == nil
+}
+
+// getImageFilePath Get the file path for the image
+func getImageFilePath(item *LibraryItem) string {
+	return filepath.Join(getFolderPath(item.Item), item.UsedFileName);
+}
+
+// getJSONFilePath Get the full path to the JSON file representing the MediaItem
+func getJSONFilePath(item *photoslibrary.MediaItem) string {
+	return filepath.Join(getFolderPath(item), "." + item.Id + ".json");
+}
+
+// loadJSON Load the JSON file into LibraryItem
+func loadJSON(filePath string) (*LibraryItem, error) {
+	info, err := os.Stat(filePath)
+
+	if err == nil && info != nil {
+		bytes, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			return nil, err
+		}
+
+		item := new(LibraryItem)
+		err = json.Unmarshal(bytes, item)
+		if err != nil {
+			return nil, err
+		}
+		return item, nil
+	}
+
+	return nil, nil
+}
+
+// createJSON create a JSON file if it does not already exist
+func createJSON(item *LibraryItem, filePath string) error {
+	_, err := os.Stat(filePath)
 	if os.IsNotExist(err) {
-		log.Printf("Creating '%v' ", fileName)
+		log.Printf("Creating JSON for '%v' ", item.UsedFileName)
 		bytes, err := item.MarshalJSON()
 		if err != nil {
 			return err
 		}
-		err = os.MkdirAll(filepath.Dir(fileName), 0700)
+		err = os.MkdirAll(filepath.Dir(filePath), 0700)
 		if err != nil {
 			return err
 		}
-		return ioutil.WriteFile(fileName, bytes, 0644)
+		return ioutil.WriteFile(filePath, bytes, 0644)
 	}
 	return nil
 }
 
-func createImage(item *photoslibrary.MediaItem, fileName string) error {
-	_, err := os.Stat(fileName)
+// createImage Download the image file if it does not already exist
+func createImage(item *LibraryItem, filePath string) error {
+	_, err := os.Stat(filePath)
 	if os.IsNotExist(err) {
 		var url string
-		if strings.HasPrefix(strings.ToLower(item.MimeType), "video") {
-			url = item.BaseUrl + "=dv"
+		if strings.HasPrefix(strings.ToLower(item.Item.MimeType), "video") {
+			url = item.Item.BaseUrl + "=dv"
 		} else {
-			url = fmt.Sprintf("%v=w%v-h%v", item.BaseUrl, item.MediaMetadata.Width, item.MediaMetadata.Height)
+			url = fmt.Sprintf("%v=w%v-h%v", item.Item.BaseUrl, item.Item.MediaMetadata.Width, item.Item.MediaMetadata.Height)
 		}
-		output, err := os.Create(fileName)
+		output, err := os.Create(filePath)
 		if err != nil {
 			return err
 		}
@@ -109,27 +169,37 @@ func createImage(item *photoslibrary.MediaItem, fileName string) error {
 			return err
 		}
 
-		log.Printf("Downloaded '%v' (%v)", fileName, humanize.Bytes(uint64(n)))
+		log.Printf("Downloaded '%v' (%v)", item.UsedFileName, humanize.Bytes(uint64(n)))
 		stats.downloaded++
 		stats.totalsize += uint64(n)
-		return nil
+	} else {
+		log.Printf("Skipping '%v'", item.UsedFileName)
 	}
 	return nil
 }
 
 func downloadItem(svc *photoslibrary.Service, item *photoslibrary.MediaItem) error {
-	name := getFileName(item)
-	imageName := name
-	jsonName := name + ".json"
-	ext, _ := mime.ExtensionsByType(item.MimeType)
-	if len(ext) > 0 {
-		imageName += ext[0]
-	}
-	err := createJSON(item, jsonName)
+	jsonFilePath := getJSONFilePath(item)
+
+	libraryItem, err := loadJSON(jsonFilePath)
 	if err != nil {
 		return err
 	}
-	return createImage(item, imageName)
+	if libraryItem == nil {
+		libraryItem = new(LibraryItem)
+		libraryItem.Item = item
+		libraryItem.UsedFileName = item.FileName
+
+		for conflict := 0; isConflictingFilePath(libraryItem); conflict++ {
+			libraryItem.UsedFileName = createFileName(libraryItem, conflict)
+		}
+	}
+
+	err = createJSON(libraryItem, jsonFilePath)
+	if err != nil {
+		return err
+	}
+	return createImage(libraryItem, getImageFilePath(libraryItem))
 }
 
 //DownloadAll downloads all files
