@@ -94,7 +94,12 @@ func isConflictingFilePath(item *LibraryItem) bool {
 
 // getImageFilePath Get the file path for the image
 func getImageFilePath(item *LibraryItem) string {
-	return filepath.Join(getFolderPath(item.Item), item.UsedFileName);
+	fileName := item.UsedFileName
+	if fileName == "" {
+		fileName = item.Item.FileName
+	}
+
+	return filepath.Join(getFolderPath(item.Item), fileName);
 }
 
 // getJSONFilePath Get the full path to the JSON file representing the MediaItem
