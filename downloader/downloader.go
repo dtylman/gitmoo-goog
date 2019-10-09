@@ -55,13 +55,12 @@ func (s *LibraryItem) MarshalJSON() ([]byte, error) {
 	return gensupport.MarshalJSON(raw, []string{}, []string{})
 }
 
+func init() {
+	Options.BackupFolder, _ = os.Getwd()
+}
+
 // getFolderPath Path of the to store JSON and image files for the particular MediaItem
 func getFolderPath(item *photoslibrary.MediaItem) string {
-	backupFolder := Options.BackupFolder
-	if backupFolder == "" {
-		backupFolder, _ = os.Getwd()
-	}
-
 	t, err := time.Parse(time.RFC3339, item.MediaMetadata.CreationTime)
 	year, month := "", ""
 	if err != nil {
@@ -71,7 +70,7 @@ func getFolderPath(item *photoslibrary.MediaItem) string {
 		year = strconv.Itoa(t.Year())
 		month = fmt.Sprintf("%02d", t.Month())
 	}
-	return filepath.Join(backupFolder, year, month)
+	return filepath.Join(Options.BackupFolder, year, month)
 }
 
 // createFileName Get the full path to the image file including what conflict position we are at
