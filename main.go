@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -124,6 +125,8 @@ func main() {
 	flag.IntVar(&downloader.Options.MaxItems, "max", math.MaxInt32, "max items to download")
 	flag.IntVar(&downloader.Options.PageSize, "pagesize", 50, "number of items to download on per API call")
 	flag.IntVar(&downloader.Options.Throttle, "throttle", 5, "Time, in seconds, to wait between API calls")
+	flag.StringVar(&downloader.Options.FolderFormat, "folder-format", filepath.Join("2006", "January"), "Time format used for folder paths based on https://golang.org/pkg/time/#Time.Format")
+	flag.BoolVar(&downloader.Options.UseFileName, "use-file-name", false, "Use file name when uploaded to Google Photos")
 
 	flag.Parse()
 	if options.logfile != "" {
