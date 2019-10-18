@@ -265,38 +265,43 @@ func downloadItem(svc *photoslibrary.Service, item *photoslibrary.MediaItem) err
 //DownloadAll downloads all files
 func DownloadAll(svc *photoslibrary.Service) error {
 	hasMore := true
+	sleepTime := time.Duration(time.Second * time.Duration(Options.Throttle))
+
 	stats.downloaded = 0
 	stats.errors = 0
 	stats.total = 0
 	stats.totalsize = 0
+
 	req := &photoslibrary.SearchMediaItemsRequest{PageSize: int64(Options.PageSize), AlbumId: Options.AlbumID}
 	for hasMore {
-		sleepTime := time.Duration(time.Second * time.Duration(Options.Throttle))
-		log.Printf("Processed: %v, Downloaded: %v, Errors: %v, Total Size: %v, Waiting %v", stats.total, stats.downloaded, stats.errors, humanize.Bytes(stats.totalsize), sleepTime)
-		time.Sleep(sleepTime)
 		items, err := svc.MediaItems.Search(req).Do()
 		if err != nil {
 			return err
 		}
 		for _, m := range items.MediaItems {
 			stats.total++
-			if stats.total > Options.MaxItems {
-				hasMore = false
-				break
-			}
 			err = downloadItem(svc, m)
 			if err != nil {
 				log.Printf("Failed to download '%v' [id %v]: %v", m.FileName, m.Id, err)
 				stats.errors++
+			}
+
+			if stats.total >= Options.MaxItems {
+				hasMore = false
+				break
 			}
 		}
 		req.PageToken = items.NextPageToken
 		if req.PageToken == "" {
 			hasMore = false
 		}
+
+		if hasMore { 
+			log.Printf("Processed: %v, Downloaded: %v, Errors: %v, Total Size: %v, Waiting %v", stats.total, stats.downloaded, stats.errors, humanize.Bytes(stats.totalsize), sleepTime)
+			time.Sleep(sleepTime)
+		}
 	}
 
-	log.Printf("Processed: %v, Downloaded: %v, Errors: %v, Total Size: %v",
-		stats.total, stats.downloaded, stats.errors, humanize.Bytes(stats.totalsize))
+	log.Printf("Finished: %v, Downloaded: %v, Errors: %v, Total Size: %v", stats.total, stats.downloaded, stats.errors, humanize.Bytes(stats.totalsize))
 	return nil
 }
