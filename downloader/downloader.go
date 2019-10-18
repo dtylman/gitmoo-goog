@@ -158,9 +158,9 @@ func getImageFilePath(item *LibraryItem) string {
 func getJSONFilePath(item *photoslibrary.MediaItem) string {
 	if Options.UseFileName {
 		return filepath.Join(getFolderPath(item), "." + item.Id + ".json");
-	} else {
-		return getLegacyPrefixFilePath(item) + ".json"
 	}
+	
+	return getLegacyPrefixFilePath(item) + ".json"
 }
 
 // loadJSON Load the JSON file into LibraryItem
