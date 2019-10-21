@@ -248,10 +248,13 @@ func downloadItem(svc *photoslibrary.Service, item *photoslibrary.MediaItem) err
 	if libraryItem == nil {
 		libraryItem = new(LibraryItem)
 		libraryItem.MediaItem = *item
-		libraryItem.UsedFileName = createFileName(libraryItem, 0)
 
-		for conflict := 0; isConflictingFilePath(libraryItem); conflict++ {
+		//Create non-conflicting file name
+		for conflict := 0; true; conflict++ {
 			libraryItem.UsedFileName = createFileName(libraryItem, conflict)
+			if !isConflictingFilePath(libraryItem) {
+				break;
+			}
 		}
 	}
 
