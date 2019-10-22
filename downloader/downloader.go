@@ -14,6 +14,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"mime"
+	"sync"
 
 	"github.com/dustin/go-humanize"
 	photoslibrary "google.golang.org/api/photoslibrary/v1"
@@ -38,12 +39,39 @@ var Options struct {
 	AlbumID string
 }
 
-var stats struct {
-	total      int
-	errors     int
-	totalsize  uint64
-	downloaded int
+type Stats struct {
+	Total int
+	Errors int
+	TotalSize uint64
+	Downloaded int
+
+	mutex sync.Mutex
 }
+
+func (s *Stats) UpdateStatsTotal(total int) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	s.Total += total
+}
+
+func (s *Stats) UpdateStatsDownloaded(totalSize uint64, downloaded int) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	s.TotalSize += totalSize
+	s.Downloaded += downloaded
+}
+
+func (s *Stats) UpdateStatsError(errors int) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	s.Errors += errors
+}
+
+var waitGroup *sync.WaitGroup
+var stats *Stats
 
 //LibraryItem Google Photo item and meta data
 type LibraryItem struct {
@@ -62,6 +90,9 @@ func (s *LibraryItem) MarshalJSON() ([]byte, error) {
 }
 
 func init() {
+	waitGroup = new(sync.WaitGroup)
+	stats = new(Stats)
+
 	Options.BackupFolder, _ = os.Getwd()
 	Options.FolderFormat = filepath.Join("2006", "January")
 }
@@ -202,36 +233,53 @@ func createJSON(item *LibraryItem, filePath string) error {
 	return nil
 }
 
+func downloadImage(item *LibraryItem, filePath string) error {
+	var url string
+
+	defer waitGroup.Done()
+
+	if strings.HasPrefix(strings.ToLower(item.MediaItem.MimeType), "video") {
+		url = item.MediaItem.BaseUrl + "=dv"
+	} else {
+		url = fmt.Sprintf("%v=w%v-h%v", item.MediaItem.BaseUrl, item.MediaItem.MediaMetadata.Width, item.MediaItem.MediaMetadata.Height)
+	}
+	output, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer output.Close()
+
+	response, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	n, err := io.Copy(output, response.Body)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Downloaded '%v' [saved as '%v'] (%v)", item.FileName, item.UsedFileName, humanize.Bytes(uint64(n)))
+
+	stats.UpdateStatsDownloaded(uint64(n), 1)
+
+	return nil
+}
+
 // createImage Download the image file if it does not already exist
 func createImage(item *LibraryItem, filePath string) error {
 	_, err := os.Stat(filePath)
 	if os.IsNotExist(err) {
-		var url string
-		if strings.HasPrefix(strings.ToLower(item.MediaItem.MimeType), "video") {
-			url = item.MediaItem.BaseUrl + "=dv"
-		} else {
-			url = fmt.Sprintf("%v=w%v-h%v", item.MediaItem.BaseUrl, item.MediaItem.MediaMetadata.Width, item.MediaItem.MediaMetadata.Height)
-		}
-		output, err := os.Create(filePath)
+		//Touch file before spawning
+		file, err := os.Create(filePath)
 		if err != nil {
 			return err
 		}
-		defer output.Close()
+		file.Close()
 
-		response, err := http.Get(url)
-		if err != nil {
-			return err
-		}
-		defer response.Body.Close()
-
-		n, err := io.Copy(output, response.Body)
-		if err != nil {
-			return err
-		}
-
-		log.Printf("Downloaded '%v' [saved as '%v'] (%v)", item.FileName, item.UsedFileName, humanize.Bytes(uint64(n)))
-		stats.downloaded++
-		stats.totalsize += uint64(n)
+		waitGroup.Add(1)
+		go downloadImage(item, filePath)
 	} else {
 		log.Printf("Skipping '%v' [saved as '%v']", item.FileName, item.UsedFileName)
 	}
@@ -270,11 +318,6 @@ func DownloadAll(svc *photoslibrary.Service) error {
 	hasMore := true
 	sleepTime := time.Duration(time.Second * time.Duration(Options.Throttle))
 
-	stats.downloaded = 0
-	stats.errors = 0
-	stats.total = 0
-	stats.totalsize = 0
-
 	req := &photoslibrary.SearchMediaItemsRequest{PageSize: int64(Options.PageSize), AlbumId: Options.AlbumID}
 	for hasMore {
 		items, err := svc.MediaItems.Search(req).Do()
@@ -282,14 +325,14 @@ func DownloadAll(svc *photoslibrary.Service) error {
 			return err
 		}
 		for _, m := range items.MediaItems {
-			stats.total++
+			stats.UpdateStatsTotal(1)
 			err = downloadItem(svc, m)
 			if err != nil {
 				log.Printf("Failed to download '%v' [id %v]: %v", m.FileName, m.Id, err)
-				stats.errors++
+				stats.UpdateStatsError(1)
 			}
 
-			if stats.total >= Options.MaxItems {
+			if stats.Total >= Options.MaxItems {
 				hasMore = false
 				break
 			}
@@ -300,11 +343,13 @@ func DownloadAll(svc *photoslibrary.Service) error {
 		}
 
 		if hasMore { 
-			log.Printf("Processed: %v, Downloaded: %v, Errors: %v, Total Size: %v, Waiting %v", stats.total, stats.downloaded, stats.errors, humanize.Bytes(stats.totalsize), sleepTime)
+			log.Printf("Processed: %v, Downloaded: %v, Errors: %v, Total Size: %v, Waiting %v", stats.Total, stats.Downloaded, stats.Errors, humanize.Bytes(stats.TotalSize), sleepTime)
 			time.Sleep(sleepTime)
 		}
+
+		waitGroup.Wait()
 	}
 
-	log.Printf("Finished: %v, Downloaded: %v, Errors: %v, Total Size: %v", stats.total, stats.downloaded, stats.errors, humanize.Bytes(stats.totalsize))
+	log.Printf("Finished: %v, Downloaded: %v, Errors: %v, Total Size: %v", stats.Total, stats.Downloaded, stats.Errors, humanize.Bytes(stats.TotalSize))
 	return nil
 }
