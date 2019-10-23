@@ -70,6 +70,10 @@ Usage of ./gitmoo-goog:
         number of items to download on per API call (default 50)
   -throttle int
         Time, in seconds, to wait between API calls (default 5)
+  -folder-format string
+        Time format used for folder paths based on https://golang.org/pkg/time/#Time.Format (default "2016/Janurary")
+  -use-file-name
+        Use file name when uploaded to Google Photos (default off)
 ```
 
 On Linux, running the following is a good practice:
