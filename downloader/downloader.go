@@ -19,6 +19,7 @@ import (
 	"github.com/dustin/go-humanize"
 	photoslibrary "google.golang.org/api/photoslibrary/v1"
 	gensupport "google.golang.org/api/gensupport"
+	"github.com/fujiwara/shapeio"
 )
 
 //Options defines downloader options
@@ -33,44 +34,19 @@ var Options struct {
 	MaxItems int
 	//number of items to download on per API call
 	PageSize int
-	//Throtthle is time to wait between API calls
+	//Throttle is time to wait between API calls
 	Throttle int
+	//DownloadThrottle is the rate to limit downloading of items (KB/sec)
+	DownloadThrottle float64
+	//ConcurrentDownloads is the number of downloads that can happen at once
+	ConcurrentDownloads int
 	//Google photos AlbumID
 	AlbumID string
 }
 
-type Stats struct {
-	Total int
-	Errors int
-	TotalSize uint64
-	Downloaded int
-
-	mutex sync.Mutex
-}
-
-func (s *Stats) UpdateStatsTotal(total int) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	s.Total += total
-}
-
-func (s *Stats) UpdateStatsDownloaded(totalSize uint64, downloaded int) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	s.TotalSize += totalSize
-	s.Downloaded += downloaded
-}
-
-func (s *Stats) UpdateStatsError(errors int) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	s.Errors += errors
-}
 
 var waitGroup *sync.WaitGroup
+var concurrentDownloadRoutines chan struct{}
 var stats *Stats
 
 //LibraryItem Google Photo item and meta data
@@ -95,6 +71,7 @@ func init() {
 
 	Options.BackupFolder, _ = os.Getwd()
 	Options.FolderFormat = filepath.Join("2006", "January")
+	Options.ConcurrentDownloads = 1
 }
 
 // getFolderPath Path of the to store JSON and image files for the particular MediaItem
@@ -233,6 +210,7 @@ func createJSON(item *LibraryItem, filePath string) error {
 	return nil
 }
 
+// downloadImage TODO
 func downloadImage(item *LibraryItem, filePath string) error {
 	var url string
 
@@ -255,7 +233,13 @@ func downloadImage(item *LibraryItem, filePath string) error {
 	}
 	defer response.Body.Close()
 
-	n, err := io.Copy(output, response.Body)
+	//Limit download rate
+	rateLimitedReader := shapeio.NewReader(response.Body)
+	if Options.DownloadThrottle > 0.0 {
+		rateLimitedReader.SetRateLimit((Options.DownloadThrottle * 1024) / float64(Options.ConcurrentDownloads))
+	}
+
+	n, err := io.Copy(output, rateLimitedReader)
 	if err != nil {
 		return err
 	}
@@ -264,6 +248,9 @@ func downloadImage(item *LibraryItem, filePath string) error {
 
 	stats.UpdateStatsDownloaded(uint64(n), 1)
 
+	//Inform channel download is complete
+	<-concurrentDownloadRoutines
+
 	return nil
 }
 
@@ -271,13 +258,15 @@ func downloadImage(item *LibraryItem, filePath string) error {
 func createImage(item *LibraryItem, filePath string) error {
 	_, err := os.Stat(filePath)
 	if os.IsNotExist(err) {
-		//Touch file before spawning
+		//Touch file before downloading (to avoid file name conflicts)
 		file, err := os.Create(filePath)
 		if err != nil {
 			return err
 		}
 		file.Close()
 
+		//Wait till room on channel to start download
+		concurrentDownloadRoutines <- struct{}{}
 		waitGroup.Add(1)
 		go downloadImage(item, filePath)
 	} else {
@@ -286,6 +275,7 @@ func createImage(item *LibraryItem, filePath string) error {
 	return nil
 }
 
+// downloadItem TODO
 func downloadItem(svc *photoslibrary.Service, item *photoslibrary.MediaItem) error {
 	jsonFilePath := getJSONFilePath(item)
 
@@ -313,13 +303,18 @@ func downloadItem(svc *photoslibrary.Service, item *photoslibrary.MediaItem) err
 	return createImage(libraryItem, getImageFilePath(libraryItem))
 }
 
-//DownloadAll downloads all files
+// DownloadAll downloads all files
 func DownloadAll(svc *photoslibrary.Service) error {
 	hasMore := true
 	sleepTime := time.Duration(time.Second * time.Duration(Options.Throttle))
 
+	//Setup channel buffer to limit downloads
+	concurrentDownloadRoutines = make(chan struct{}, Options.ConcurrentDownloads)
+
 	req := &photoslibrary.SearchMediaItemsRequest{PageSize: int64(Options.PageSize), AlbumId: Options.AlbumID}
 	for hasMore {
+		log.Printf("Processed: %v, Downloaded: %v, Errors: %v, Total Size: %v", stats.Total, stats.Downloaded, stats.Errors, humanize.Bytes(stats.TotalSize))
+
 		items, err := svc.MediaItems.Search(req).Do()
 		if err != nil {
 			return err
@@ -343,12 +338,12 @@ func DownloadAll(svc *photoslibrary.Service) error {
 		}
 
 		if hasMore { 
-			log.Printf("Processed: %v, Downloaded: %v, Errors: %v, Total Size: %v, Waiting %v", stats.Total, stats.Downloaded, stats.Errors, humanize.Bytes(stats.TotalSize), sleepTime)
 			time.Sleep(sleepTime)
 		}
-
-		waitGroup.Wait()
 	}
+
+	//Ensure all downloads are complete
+	waitGroup.Wait()
 
 	log.Printf("Finished: %v, Downloaded: %v, Errors: %v, Total Size: %v", stats.Total, stats.Downloaded, stats.Errors, humanize.Bytes(stats.TotalSize))
 	return nil

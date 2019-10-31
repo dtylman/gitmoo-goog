@@ -124,9 +124,11 @@ func main() {
 	flag.StringVar(&downloader.Options.AlbumID, "album", "", "download only from this album (use google album id)")
 	flag.IntVar(&downloader.Options.MaxItems, "max", math.MaxInt32, "max items to download")
 	flag.IntVar(&downloader.Options.PageSize, "pagesize", 50, "number of items to download on per API call")
-	flag.IntVar(&downloader.Options.Throttle, "throttle", 5, "Time, in seconds, to wait between API calls")
-	flag.StringVar(&downloader.Options.FolderFormat, "folder-format", filepath.Join("2006", "January"), "Time format used for folder paths based on https://golang.org/pkg/time/#Time.Format")
-	flag.BoolVar(&downloader.Options.UseFileName, "use-file-name", false, "Use file name when uploaded to Google Photos")
+	flag.IntVar(&downloader.Options.Throttle, "throttle", 5, "time, in seconds, to wait between API calls")
+	flag.StringVar(&downloader.Options.FolderFormat, "folder-format", filepath.Join("2006", "January"), "time format used for folder paths based on https://golang.org/pkg/time/#Time.Format")
+	flag.BoolVar(&downloader.Options.UseFileName, "use-file-name", false, "use file name when uploaded to Google Photos")
+	flag.Float64Var(&downloader.Options.DownloadThrottle, "download-throttle", 0, "rate in KB/sec, to limit downloading of items")
+	flag.IntVar(&downloader.Options.ConcurrentDownloads, "concurrent-downloads", 5, "number of concurrent item downloads")
 
 	flag.Parse()
 	if options.logfile != "" {

@@ -5,6 +5,7 @@ go 1.12
 require (
 	cloud.google.com/go v0.37.4 // indirect
 	github.com/dustin/go-humanize v1.0.0
+	github.com/fujiwara/shapeio v0.0.0-20170602072123-c073257dd745
 	github.com/golang/mock v1.3.1 // indirect
 	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/google/pprof v0.0.0-20190908185732-236ed259b199 // indirect
