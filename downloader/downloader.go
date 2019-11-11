@@ -14,12 +14,12 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"mime"
-	"sync"
 
 	"github.com/dustin/go-humanize"
 	photoslibrary "google.golang.org/api/photoslibrary/v1"
 	gensupport "google.golang.org/api/gensupport"
 	"github.com/fujiwara/shapeio"
+	errgroup "golang.org/x/sync/errgroup"
 )
 
 //Options defines downloader options
@@ -45,7 +45,7 @@ var Options struct {
 }
 
 
-var waitGroup *sync.WaitGroup
+var waitGroup *errgroup.Group
 var concurrentDownloadRoutines chan struct{}
 var stats *Stats
 
@@ -66,7 +66,7 @@ func (s *LibraryItem) MarshalJSON() ([]byte, error) {
 }
 
 func init() {
-	waitGroup = new(sync.WaitGroup)
+	waitGroup = new(errgroup.Group)
 	stats = new(Stats)
 
 	Options.BackupFolder, _ = os.Getwd()
@@ -214,8 +214,6 @@ func createJSON(item *LibraryItem, filePath string) error {
 func downloadImage(item *LibraryItem, filePath string) error {
 	var url string
 
-	defer waitGroup.Done()
-
 	if strings.HasPrefix(strings.ToLower(item.MediaItem.MimeType), "video") {
 		url = item.MediaItem.BaseUrl + "=dv"
 	} else {
@@ -267,8 +265,9 @@ func createImage(item *LibraryItem, filePath string) error {
 
 		//Wait till room on channel to start download
 		concurrentDownloadRoutines <- struct{}{}
-		waitGroup.Add(1)
-		go downloadImage(item, filePath)
+		waitGroup.Go(func() error {
+			return downloadImage(item, filePath)
+		})
 	} else {
 		log.Printf("Skipping '%v' [saved as '%v']", item.FileName, item.UsedFileName)
 	}
@@ -313,8 +312,6 @@ func DownloadAll(svc *photoslibrary.Service) error {
 
 	req := &photoslibrary.SearchMediaItemsRequest{PageSize: int64(Options.PageSize), AlbumId: Options.AlbumID}
 	for hasMore {
-		log.Printf("Processed: %v, Downloaded: %v, Errors: %v, Total Size: %v", stats.Total, stats.Downloaded, stats.Errors, humanize.Bytes(stats.TotalSize))
-
 		items, err := svc.MediaItems.Search(req).Do()
 		if err != nil {
 			return err
@@ -337,13 +334,17 @@ func DownloadAll(svc *photoslibrary.Service) error {
 			hasMore = false
 		}
 
+		//Wait for all downloads in group to complete, return if any errors
+		err = waitGroup.Wait()
+		if err != nil {
+			return err
+		}
+
 		if hasMore { 
+			log.Printf("Processed: %v, Downloaded: %v, Errors: %v, Total Size: %v", stats.Total, stats.Downloaded, stats.Errors, humanize.Bytes(stats.TotalSize))
 			time.Sleep(sleepTime)
 		}
 	}
-
-	//Ensure all downloads are complete
-	waitGroup.Wait()
 
 	log.Printf("Finished: %v, Downloaded: %v, Errors: %v, Total Size: %v", stats.Total, stats.Downloaded, stats.Errors, humanize.Bytes(stats.TotalSize))
 	return nil
