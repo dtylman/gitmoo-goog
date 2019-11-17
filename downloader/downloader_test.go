@@ -16,6 +16,22 @@ func tempPath() string {
 	return path
 }
 
+func TestMarshallJSON(t *testing.T) {
+	item := new(LibraryItem)
+	item.UsedFileName = "test.jpg"
+
+	bytes, err := item.MarshalJSON()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	have := string(bytes)
+	want := "{\"UsedFileName\":\"test.jpg\"}"
+
+	if have != want {
+		t.Errorf("LibraryItem.MarshallJSON = %v; want %v", have, want)
+	}
+}
+
 func TestGetFolderPath(t *testing.T) {
 	t.Run("Missing", func(t *testing.T) {
 		downloader := NewDownloader()
@@ -262,6 +278,33 @@ func TestGetJSONFilePath(t *testing.T) {
 			t.Errorf("downloader.getJSONFilePath() = %v; want %v", have, want)
 		}
 	})
+}
+
+func TestCreateAndLoadJSON(t *testing.T) {
+	downloader := NewDownloader()
+	downloader.Options.BackupFolder = tempPath()
+	defer os.RemoveAll(downloader.Options.BackupFolder)
+	downloader.Options.UseFileName = true
+
+	item := new(LibraryItem)
+	item.Id = "12345678901234567890"
+	item.MediaMetadata = new(photoslibrary.MediaMetadata)
+
+	filePath := filepath.Join(downloader.Options.BackupFolder, "test.json")
+
+	err := downloader.createJSON(item, filePath)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	newItem, err := downloader.loadJSON(filePath)
+	if err != nil {
+		t.Fatalf("%v", newItem)
+	}
+
+	if item.Id != newItem.Id {
+		t.Errorf("downloader.createJSON() = %v; want %v", newItem, item)
+	}
 }
 
 // TestMediaItemFileName Test to ensure that JSON with `FileName` will be

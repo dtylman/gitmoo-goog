@@ -1,6 +1,7 @@
-//Options defines downloader options
+// Package downloader Options defines downloader options
 package downloader
 
+// Options Defines downloader various options
 type Options struct {
 	//BackupFolderis the backup folder
 	BackupFolder string

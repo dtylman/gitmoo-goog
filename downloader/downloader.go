@@ -38,6 +38,8 @@ func (s *LibraryItem) MarshalJSON() ([]byte, error) {
 	return gensupport.MarshalJSON(raw, []string{}, []string{})
 }
 
+// Downloader Struct for downloading photos into managed folders, use factory
+// method `NewDownloader` to create
 type Downloader struct {
 	waitGroup                  *errgroup.Group
 	concurrentDownloadRoutines chan struct{}
@@ -45,6 +47,7 @@ type Downloader struct {
 	Options                    *Options
 }
 
+// NewDownloader factory to create a Downloader instance with defaults
 func NewDownloader() *Downloader {
 	downloader := new(Downloader)
 	downloader.waitGroup = new(errgroup.Group)
