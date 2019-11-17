@@ -1,7 +1,6 @@
 package main
 
 import (
-	"path/filepath"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/dtylman/gitmoo-goog/downloader"
 	"golang.org/x/net/context"
@@ -80,7 +80,7 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-func process() error {
+func process(downloader *downloader.Downloader) error {
 	b, err := ioutil.ReadFile("credentials.json")
 	if err != nil {
 		log.Println("Enable photos API here: https://developers.google.com/photos/library/guides/get-started#enable-the-api")
@@ -116,6 +116,7 @@ func process() error {
 
 func main() {
 	workingDirectory, _ := os.Getwd()
+	downloader := downloader.NewDownloader()
 	log.Println("This is gitmoo-goog ver", Version)
 	flag.BoolVar(&options.loop, "loop", false, "loops forever (use as daemon)")
 	flag.BoolVar(&options.ignoreerrors, "force", false, "ignore errors, and force working")
@@ -143,7 +144,7 @@ func main() {
 			}
 		}()
 	}
-	err := process()
+	err := process(downloader)
 	if err != nil {
 		log.Println(err)
 	}
