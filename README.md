@@ -74,6 +74,10 @@ Usage of ./gitmoo-goog:
         Time format used for folder paths based on https://golang.org/pkg/time/#Time.Format (default "2016/Janurary")
   -use-file-name
         Use file name when uploaded to Google Photos (default off)
+  -download-throttle
+        Rate in KB/sec, to limit downloading of items (default off)
+  -concurrent-downloads
+        Number of concurrent item downloads (default 5)
 ```
 
 On Linux, running the following is a good practice:

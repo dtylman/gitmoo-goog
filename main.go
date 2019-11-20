@@ -1,7 +1,6 @@
 package main
 
 import (
-	"path/filepath"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/dtylman/gitmoo-goog/downloader"
 	"golang.org/x/net/context"
@@ -80,7 +80,7 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-func process() error {
+func process(downloader *downloader.Downloader) error {
 	b, err := ioutil.ReadFile("credentials.json")
 	if err != nil {
 		log.Println("Enable photos API here: https://developers.google.com/photos/library/guides/get-started#enable-the-api")
@@ -116,6 +116,7 @@ func process() error {
 
 func main() {
 	workingDirectory, _ := os.Getwd()
+	downloader := downloader.NewDownloader()
 	log.Println("This is gitmoo-goog ver", Version)
 	flag.BoolVar(&options.loop, "loop", false, "loops forever (use as daemon)")
 	flag.BoolVar(&options.ignoreerrors, "force", false, "ignore errors, and force working")
@@ -124,9 +125,11 @@ func main() {
 	flag.StringVar(&downloader.Options.AlbumID, "album", "", "download only from this album (use google album id)")
 	flag.IntVar(&downloader.Options.MaxItems, "max", math.MaxInt32, "max items to download")
 	flag.IntVar(&downloader.Options.PageSize, "pagesize", 50, "number of items to download on per API call")
-	flag.IntVar(&downloader.Options.Throttle, "throttle", 5, "Time, in seconds, to wait between API calls")
-	flag.StringVar(&downloader.Options.FolderFormat, "folder-format", filepath.Join("2006", "January"), "Time format used for folder paths based on https://golang.org/pkg/time/#Time.Format")
-	flag.BoolVar(&downloader.Options.UseFileName, "use-file-name", false, "Use file name when uploaded to Google Photos")
+	flag.IntVar(&downloader.Options.Throttle, "throttle", 5, "time, in seconds, to wait between API calls")
+	flag.StringVar(&downloader.Options.FolderFormat, "folder-format", filepath.Join("2006", "January"), "time format used for folder paths based on https://golang.org/pkg/time/#Time.Format")
+	flag.BoolVar(&downloader.Options.UseFileName, "use-file-name", false, "use file name when uploaded to Google Photos")
+	flag.Float64Var(&downloader.Options.DownloadThrottle, "download-throttle", 0, "rate in KB/sec, to limit downloading of items")
+	flag.IntVar(&downloader.Options.ConcurrentDownloads, "concurrent-downloads", 5, "number of concurrent item downloads")
 
 	flag.Parse()
 	if options.logfile != "" {
@@ -141,7 +144,7 @@ func main() {
 			}
 		}()
 	}
-	err := process()
+	err := process(downloader)
 	if err != nil {
 		log.Println(err)
 	}

@@ -1,49 +1,26 @@
 package downloader
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-	"encoding/json"
-	"crypto/md5"
-	"encoding/hex"
-	"mime"
 
 	"github.com/dustin/go-humanize"
-	photoslibrary "google.golang.org/api/photoslibrary/v1"
+	"github.com/fujiwara/shapeio"
+	errgroup "golang.org/x/sync/errgroup"
 	gensupport "google.golang.org/api/gensupport"
+	photoslibrary "google.golang.org/api/photoslibrary/v1"
 )
-
-//Options defines downloader options
-var Options struct {
-	//BackupFolderis the backup folder
-	BackupFolder string
-	//FolderFormat time format used to format folder structure
-	FolderFormat string
-	//UseFileName use file name when uploaded to Google Photos
-	UseFileName bool
-	//MaxItems how many items to download
-	MaxItems int
-	//number of items to download on per API call
-	PageSize int
-	//Throtthle is time to wait between API calls
-	Throttle int
-	//Google photos AlbumID
-	AlbumID string
-}
-
-var stats struct {
-	total      int
-	errors     int
-	totalsize  uint64
-	downloaded int
-}
 
 //LibraryItem Google Photo item and meta data
 type LibraryItem struct {
@@ -61,88 +38,109 @@ func (s *LibraryItem) MarshalJSON() ([]byte, error) {
 	return gensupport.MarshalJSON(raw, []string{}, []string{})
 }
 
-func init() {
-	Options.BackupFolder, _ = os.Getwd()
-	Options.FolderFormat = filepath.Join("2006", "January")
+// Downloader Struct for downloading photos into managed folders, use factory
+// method `NewDownloader` to create
+type Downloader struct {
+	waitGroup                  *errgroup.Group
+	concurrentDownloadRoutines chan struct{}
+	stats                      *Stats
+	Options                    *Options
+}
+
+// NewDownloader factory to create a Downloader instance with defaults
+func NewDownloader() *Downloader {
+	downloader := new(Downloader)
+	downloader.waitGroup = new(errgroup.Group)
+	downloader.stats = new(Stats)
+
+	downloader.Options = new(Options)
+	downloader.Options.BackupFolder, _ = os.Getwd()
+	downloader.Options.FolderFormat = filepath.Join("2006", "January")
+	downloader.Options.ConcurrentDownloads = 1
+
+	return downloader
 }
 
 // getFolderPath Path of the to store JSON and image files for the particular MediaItem
-func getFolderPath(item *photoslibrary.MediaItem) string {
+func (d *Downloader) getFolderPath(item *photoslibrary.MediaItem) string {
+	//TODO Check that item.MediaMetadata exists
 	t, err := time.Parse(time.RFC3339, item.MediaMetadata.CreationTime)
 	if err != nil {
 		//Default to an epoch if cannot parse time
 		t, err = time.Parse(time.RFC3339, "1970-01-01T00:00:00Z")
 	}
 
-	return filepath.Join(Options.BackupFolder, t.Format(Options.FolderFormat))
+	return filepath.Join(d.Options.BackupFolder, t.Format(d.Options.FolderFormat))
 }
 
 // createFileName Get the full path to the image file including what conflict position we are at
-func createFileName(item *LibraryItem, conflict int) string {
-	fileName := getImageFilePath(item)
+func (d *Downloader) createFileName(item *LibraryItem, conflict int) string {
+	fileName := d.getImageFilePath(item)
 	if conflict > 0 {
 		fileExtension := filepath.Ext(fileName)
 		index := strings.LastIndex(fileName, fileExtension)
 		fileName = fileName[0:index] + " (" + fmt.Sprintf("%d", conflict) + ")" + fileExtension
 	}
 
-	return filepath.Base(fileName);
+	return filepath.Base(fileName)
 }
 
 // isConflictingFilePath Check if the image file already exists
-func isConflictingFilePath(item *LibraryItem) bool {
-	_, err := os.Stat(getImageFilePath(item))
+func (d *Downloader) isConflictingFilePath(item *LibraryItem) bool {
+	_, err := os.Stat(d.getImageFilePath(item))
 
 	return err == nil
 }
 
 // getLegacyPrefixFilePathByTime Build a file path based on the image creation
 // time, file extension will need to be appened after
-func getLegacyPrefixFilePathByTime(item *photoslibrary.MediaItem) (string, error) {
+func (d *Downloader) getLegacyPrefixFilePathByTime(item *photoslibrary.MediaItem) (string, error) {
+	//TODO check that item.MediaMetadata and item.Id exist
 	t, err := time.Parse(time.RFC3339, item.MediaMetadata.CreationTime)
 	if err != nil {
 		return "", err
 	}
+	//TODO Assuming item.Id is over a certain length without checking
 	name := fmt.Sprintf("%v_%v", t.Day(), item.Id[len(item.Id)-8:])
-	return filepath.Join(getFolderPath(item), name), nil
+	return filepath.Join(d.getFolderPath(item), name), nil
 }
 
 // getLegacyPrefixFilePathByHash Build a file path when missing a image
 // creation time based on a MD5 hash of the Media Item ID, file extension will
 // need to be appened after
-func getLegacyPrefixFilePathByHash(item *photoslibrary.MediaItem) string {
+func (d *Downloader) getLegacyPrefixFilePathByHash(item *photoslibrary.MediaItem) string {
 	hasher := md5.New()
 	hasher.Write([]byte(item.Id))
 	hash := hex.EncodeToString(hasher.Sum(nil))
-	return filepath.Join(Options.BackupFolder, hash[:4], hash[4:8], hash[8:])
+	return filepath.Join(d.Options.BackupFolder, hash[:4], hash[4:8], hash[8:])
 }
 
 // getLegacyPrefixFilePath Build a file path based on legacy naming convention
 // of using Media Item ID, file extension will need to be appened after
-func getLegacyPrefixFilePath(item *photoslibrary.MediaItem) string {
+func (d *Downloader) getLegacyPrefixFilePath(item *photoslibrary.MediaItem) string {
 	//Legacy file names
-	fileName, err := getLegacyPrefixFilePathByTime(item)
+	fileName, err := d.getLegacyPrefixFilePathByTime(item)
 	if err != nil {
 		//Must return since this provides its own folder paths
-		fileName = getLegacyPrefixFilePathByHash(item)
+		fileName = d.getLegacyPrefixFilePathByHash(item)
 	}
 
 	return fileName
 }
 
 // getImageFilePath Get the file path for the image
-func getImageFilePath(item *LibraryItem) string {
+func (d *Downloader) getImageFilePath(item *LibraryItem) string {
 	var fileName string
 
-	if Options.UseFileName {
+	if d.Options.UseFileName {
 		fileName = item.UsedFileName
 		if fileName == "" {
 			fileName = item.FileName
 		}
 
-		fileName = filepath.Join(getFolderPath(&item.MediaItem), fileName);
+		fileName = filepath.Join(d.getFolderPath(&item.MediaItem), fileName)
 	} else {
-		fileName = getLegacyPrefixFilePath(&item.MediaItem)
+		fileName = d.getLegacyPrefixFilePath(&item.MediaItem)
 
 		//Append the file extension based on the mime type
 		ext, _ := mime.ExtensionsByType(item.MimeType)
@@ -155,16 +153,17 @@ func getImageFilePath(item *LibraryItem) string {
 }
 
 // getJSONFilePath Get the full path to the JSON file representing the MediaItem
-func getJSONFilePath(item *photoslibrary.MediaItem) string {
-	if Options.UseFileName {
-		return filepath.Join(getFolderPath(item), "." + item.Id + ".json");
+func (d *Downloader) getJSONFilePath(item *photoslibrary.MediaItem) string {
+	if d.Options.UseFileName {
+		//TODO item.Id could be missing
+		return filepath.Join(d.getFolderPath(item), "."+item.Id+".json")
 	}
-	
-	return getLegacyPrefixFilePath(item) + ".json"
+
+	return d.getLegacyPrefixFilePath(item) + ".json"
 }
 
 // loadJSON Load the JSON file into LibraryItem
-func loadJSON(filePath string) (*LibraryItem, error) {
+func (d *Downloader) loadJSON(filePath string) (*LibraryItem, error) {
 	info, err := os.Stat(filePath)
 
 	if err == nil && info != nil {
@@ -185,7 +184,7 @@ func loadJSON(filePath string) (*LibraryItem, error) {
 }
 
 // createJSON create a JSON file if it does not already exist
-func createJSON(item *LibraryItem, filePath string) error {
+func (d *Downloader) createJSON(item *LibraryItem, filePath string) error {
 	_, err := os.Stat(filePath)
 	if os.IsNotExist(err) {
 		log.Printf("Creating JSON for '%v' ", item.UsedFileName)
@@ -202,46 +201,74 @@ func createJSON(item *LibraryItem, filePath string) error {
 	return nil
 }
 
+// downloadImage TODO
+func (d *Downloader) downloadImage(item *LibraryItem, filePath string) error {
+	var url string
+
+	if strings.HasPrefix(strings.ToLower(item.MediaItem.MimeType), "video") {
+		url = item.MediaItem.BaseUrl + "=dv"
+	} else {
+		url = fmt.Sprintf("%v=w%v-h%v", item.MediaItem.BaseUrl, item.MediaItem.MediaMetadata.Width, item.MediaItem.MediaMetadata.Height)
+	}
+	output, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer output.Close()
+
+	response, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	//Limit download rate
+	rateLimitedReader := shapeio.NewReader(response.Body)
+	if d.Options.DownloadThrottle > 0.0 {
+		rateLimitedReader.SetRateLimit((d.Options.DownloadThrottle * 1024) / float64(d.Options.ConcurrentDownloads))
+	}
+
+	n, err := io.Copy(output, rateLimitedReader)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Downloaded '%v' [saved as '%v'] (%v)", item.FileName, item.UsedFileName, humanize.Bytes(uint64(n)))
+
+	d.stats.UpdateStatsDownloaded(uint64(n), 1)
+
+	//Inform channel download is complete
+	<-d.concurrentDownloadRoutines
+
+	return nil
+}
+
 // createImage Download the image file if it does not already exist
-func createImage(item *LibraryItem, filePath string) error {
+func (d *Downloader) createImage(item *LibraryItem, filePath string) error {
 	_, err := os.Stat(filePath)
 	if os.IsNotExist(err) {
-		var url string
-		if strings.HasPrefix(strings.ToLower(item.MediaItem.MimeType), "video") {
-			url = item.MediaItem.BaseUrl + "=dv"
-		} else {
-			url = fmt.Sprintf("%v=w%v-h%v", item.MediaItem.BaseUrl, item.MediaItem.MediaMetadata.Width, item.MediaItem.MediaMetadata.Height)
-		}
-		output, err := os.Create(filePath)
-		if err != nil {
-			return err
-		}
-		defer output.Close()
-
-		response, err := http.Get(url)
-		if err != nil {
-			return err
-		}
-		defer response.Body.Close()
-
-		n, err := io.Copy(output, response.Body)
+		//Touch file before downloading (to avoid file name conflicts)
+		err := ioutil.WriteFile(filePath, []byte{}, 0644)
 		if err != nil {
 			return err
 		}
 
-		log.Printf("Downloaded '%v' [saved as '%v'] (%v)", item.FileName, item.UsedFileName, humanize.Bytes(uint64(n)))
-		stats.downloaded++
-		stats.totalsize += uint64(n)
+		//Wait till room on channel to start download
+		d.concurrentDownloadRoutines <- struct{}{}
+		d.waitGroup.Go(func() error {
+			return d.downloadImage(item, filePath)
+		})
 	} else {
 		log.Printf("Skipping '%v' [saved as '%v']", item.FileName, item.UsedFileName)
 	}
 	return nil
 }
 
-func downloadItem(svc *photoslibrary.Service, item *photoslibrary.MediaItem) error {
-	jsonFilePath := getJSONFilePath(item)
+// downloadItem TODO
+func (d *Downloader) downloadItem(svc *photoslibrary.Service, item *photoslibrary.MediaItem) error {
+	jsonFilePath := d.getJSONFilePath(item)
 
-	libraryItem, err := loadJSON(jsonFilePath)
+	libraryItem, err := d.loadJSON(jsonFilePath)
 	if err != nil {
 		return err
 	}
@@ -251,45 +278,43 @@ func downloadItem(svc *photoslibrary.Service, item *photoslibrary.MediaItem) err
 
 		//Create non-conflicting file name
 		for conflict := 0; true; conflict++ {
-			libraryItem.UsedFileName = createFileName(libraryItem, conflict)
-			if !isConflictingFilePath(libraryItem) {
-				break;
+			libraryItem.UsedFileName = d.createFileName(libraryItem, conflict)
+			if !d.isConflictingFilePath(libraryItem) {
+				break
 			}
 		}
 	}
 
-	err = createJSON(libraryItem, jsonFilePath)
+	err = d.createJSON(libraryItem, jsonFilePath)
 	if err != nil {
 		return err
 	}
-	return createImage(libraryItem, getImageFilePath(libraryItem))
+	return d.createImage(libraryItem, d.getImageFilePath(libraryItem))
 }
 
-//DownloadAll downloads all files
-func DownloadAll(svc *photoslibrary.Service) error {
+// DownloadAll downloads all files
+func (d *Downloader) DownloadAll(svc *photoslibrary.Service) error {
 	hasMore := true
-	sleepTime := time.Duration(time.Second * time.Duration(Options.Throttle))
+	sleepTime := time.Duration(time.Second * time.Duration(d.Options.Throttle))
 
-	stats.downloaded = 0
-	stats.errors = 0
-	stats.total = 0
-	stats.totalsize = 0
+	//Setup channel buffer to limit downloads
+	d.concurrentDownloadRoutines = make(chan struct{}, d.Options.ConcurrentDownloads)
 
-	req := &photoslibrary.SearchMediaItemsRequest{PageSize: int64(Options.PageSize), AlbumId: Options.AlbumID}
+	req := &photoslibrary.SearchMediaItemsRequest{PageSize: int64(d.Options.PageSize), AlbumId: d.Options.AlbumID}
 	for hasMore {
 		items, err := svc.MediaItems.Search(req).Do()
 		if err != nil {
 			return err
 		}
 		for _, m := range items.MediaItems {
-			stats.total++
-			err = downloadItem(svc, m)
+			d.stats.UpdateStatsTotal(1)
+			err = d.downloadItem(svc, m)
 			if err != nil {
 				log.Printf("Failed to download '%v' [id %v]: %v", m.FileName, m.Id, err)
-				stats.errors++
+				d.stats.UpdateStatsError(1)
 			}
 
-			if stats.total >= Options.MaxItems {
+			if d.stats.Total >= d.Options.MaxItems {
 				hasMore = false
 				break
 			}
@@ -299,12 +324,18 @@ func DownloadAll(svc *photoslibrary.Service) error {
 			hasMore = false
 		}
 
-		if hasMore { 
-			log.Printf("Processed: %v, Downloaded: %v, Errors: %v, Total Size: %v, Waiting %v", stats.total, stats.downloaded, stats.errors, humanize.Bytes(stats.totalsize), sleepTime)
+		//Wait for all downloads in group to complete, return if any errors
+		err = d.waitGroup.Wait()
+		if err != nil {
+			return err
+		}
+
+		if hasMore {
+			log.Printf("Processed: %v, Downloaded: %v, Errors: %v, Total Size: %v", d.stats.Total, d.stats.Downloaded, d.stats.Errors, humanize.Bytes(d.stats.TotalSize))
 			time.Sleep(sleepTime)
 		}
 	}
 
-	log.Printf("Finished: %v, Downloaded: %v, Errors: %v, Total Size: %v", stats.total, stats.downloaded, stats.errors, humanize.Bytes(stats.totalsize))
+	log.Printf("Finished: %v, Downloaded: %v, Errors: %v, Total Size: %v", d.stats.Total, d.stats.Downloaded, d.stats.Errors, humanize.Bytes(d.stats.TotalSize))
 	return nil
 }

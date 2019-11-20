@@ -2,6 +2,8 @@
 cloud.google.com/go/compute/metadata
 # github.com/dustin/go-humanize v1.0.0
 github.com/dustin/go-humanize
+# github.com/fujiwara/shapeio v0.0.0-20170602072123-c073257dd745
+github.com/fujiwara/shapeio
 # github.com/golang/protobuf v1.3.2
 github.com/golang/protobuf/proto
 # golang.org/x/net v0.0.0-20190916140828-c8589233b77d
@@ -13,6 +15,8 @@ golang.org/x/oauth2/google
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
+# golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
+golang.org/x/time/rate
 # google.golang.org/api v0.3.2
 google.golang.org/api/photoslibrary/v1
 google.golang.org/api/gensupport
