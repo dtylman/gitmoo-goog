@@ -36,7 +36,7 @@ jobs:
           zip artifacts/gitmoo-goog.exe.zip /go/src/github.com/dtylman/gitmoo-goog/gitmoo-goog.exe
           cp /go/src/github.com/dtylman/gitmoo-goog/installer/*.deb artifacts          
           go get -u github.com/tcnksm/ghr
-          ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts
+          ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete build-${CIRCLE_BUILD_NUM} ./artifacts
       
       - store_artifacts:
           path: /go/src/github.com/dtylman/gitmoo-goog/artifacts
