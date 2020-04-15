@@ -17,6 +17,7 @@ var options struct {
 }
 
 func init() {
+	options.Name = "gitmoo-goog"
 	options.Branch = os.Getenv("CIRCLE_BRANCH")
 	options.BuildNum = os.Getenv("CIRCLE_BUILD_NUM")
 	options.Arch = "amd64"
