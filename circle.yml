@@ -30,11 +30,13 @@ jobs:
           go build
           ./installer
             
-      - store_artifacts:
-          path: /go/src/github.com/dtylman/gitmoo-goog/gitmoo-goog
+      - run: |
+          mkdir artifacts
+          zip artifacts/gitmoo-goog.zip /go/src/github.com/dtylman/gitmoo-goog/gitmoo-goog
+          zip artifacts/gitmoo-goog.exe.zip /go/src/github.com/dtylman/gitmoo-goog/gitmoo-goog.exe
+          cp /go/src/github.com/dtylman/gitmoo-goog/installer/*.deb artifacts          
+          go get -u github.com/tcnksm/ghr
+          ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts
       
       - store_artifacts:
-          path: /go/src/github.com/dtylman/gitmoo-goog/gitmoo-goog.exe
-
-      - store_artifacts:
-          path: /go/src/github.com/dtylman/gitmoo-goog/installer/*.deb
+          path: /go/src/github.com/dtylman/gitmoo-goog/artifacts
