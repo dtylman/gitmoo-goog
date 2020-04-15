@@ -24,10 +24,17 @@ jobs:
       # specify any bash command here prefixed with `run: `      
       - run: go test -v ./...
       - run: GOOS=windows go build
-      - run: go build
-      
+      - run: |
+          go build
+          cd installer
+          go build
+          ./installer
+            
       - store_artifacts:
           path: /go/src/github.com/dtylman/gitmoo-goog/gitmoo-goog
       
       - store_artifacts:
           path: /go/src/github.com/dtylman/gitmoo-goog/gitmoo-goog.exe
+
+      - store_artifacts:
+          path: /go/src/github.com/dtylman/gitmoo-goog/installer/*.deb

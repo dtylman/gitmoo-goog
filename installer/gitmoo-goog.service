@@ -1,0 +1,12 @@
+[Unit]
+Description=gitmoo-goog
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=30
+ExecStart=/usr/local/bin/gitmoo-goog -folder /var/photos -loop
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target

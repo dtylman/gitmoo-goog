@@ -12,15 +12,13 @@ import (
 	"path/filepath"
 
 	"github.com/dtylman/gitmoo-goog/downloader"
+	"github.com/dtylman/gitmoo-goog/version"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	photoslibrary "google.golang.org/api/photoslibrary/v1"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
-
-//Version is the version number
-const Version = "0.23"
 
 var options struct {
 	loop         bool
@@ -117,7 +115,7 @@ func process(downloader *downloader.Downloader) error {
 func main() {
 	workingDirectory, _ := os.Getwd()
 	downloader := downloader.NewDownloader()
-	log.Println("This is gitmoo-goog ver", Version)
+	log.Println("This is gitmoo-goog ver", version.Version)
 	flag.BoolVar(&options.loop, "loop", false, "loops forever (use as daemon)")
 	flag.BoolVar(&options.ignoreerrors, "force", false, "ignore errors, and force working")
 	flag.StringVar(&options.logfile, "logfile", "", "log to this file")
