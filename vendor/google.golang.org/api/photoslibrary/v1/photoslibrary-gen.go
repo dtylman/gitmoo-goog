@@ -1072,11 +1072,6 @@ type MediaItem struct {
 	// the user if they're signed in.
 	ProductUrl string `json:"productUrl,omitempty"`
 
-	// WARNING! This block had to be added to enable this field!
-	// FileName: Filename of the media item. This is shown to the user in the 
-	// item's info section in the Google Photos app.
-	FileName string `json:"filename,omitempty"`
-
 	// ServerResponse contains the HTTP response code and headers from the
 	// server.
 	googleapi.ServerResponse `json:"-"`

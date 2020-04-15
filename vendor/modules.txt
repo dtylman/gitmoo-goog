@@ -1,5 +1,10 @@
 # cloud.google.com/go v0.37.4
 cloud.google.com/go/compute/metadata
+# github.com/blakesmith/ar v0.0.0-20190502131153-809d4375e1fb
+github.com/blakesmith/ar
+# github.com/dtylman/gopack v0.0.0-20191030095432-3a1a77a8b52c
+github.com/dtylman/gopack/deb
+github.com/dtylman/gopack/files
 # github.com/dustin/go-humanize v1.0.0
 github.com/dustin/go-humanize
 # github.com/fujiwara/shapeio v0.0.0-20170602072123-c073257dd745
@@ -15,23 +20,25 @@ golang.org/x/oauth2/google
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
+# golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
+golang.org/x/sync/errgroup
 # golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 golang.org/x/time/rate
 # google.golang.org/api v0.3.2
-google.golang.org/api/photoslibrary/v1
 google.golang.org/api/gensupport
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/internal/uritemplates
+google.golang.org/api/photoslibrary/v1
 # google.golang.org/appengine v1.6.2
 google.golang.org/appengine
-google.golang.org/appengine/urlfetch
 google.golang.org/appengine/internal
 google.golang.org/appengine/internal/app_identity
-google.golang.org/appengine/internal/modules
-google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/internal/base
 google.golang.org/appengine/internal/datastore
 google.golang.org/appengine/internal/log
+google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
+google.golang.org/appengine/internal/urlfetch
+google.golang.org/appengine/urlfetch
 # gopkg.in/natefinch/lumberjack.v2 v2.0.0
 gopkg.in/natefinch/lumberjack.v2
