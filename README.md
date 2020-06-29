@@ -95,3 +95,9 @@ Logfile will be saved as `gitmoo.log`.
 Files are created as follows:
 
 `[folder][year][month][day]_[hash].json` and `.jpg`. The `json` file holds the metadata from `google-photos`. 
+
+## Building:
+
+To build you may need to specify that module download mode is using a vendor folder.  Failure to do this will mean that modified vendor files will not be used.
+
+`go build -mod vendor`
