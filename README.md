@@ -101,3 +101,7 @@ Files are created as follows:
 To build you may need to specify that module download mode is using a vendor folder.  Failure to do this will mean that modified vendor files will not be used.
 
 `go build -mod vendor`
+
+## Testing:
+
+`go test -mod vendor ./...`
