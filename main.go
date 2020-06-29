@@ -145,5 +145,6 @@ func main() {
 	err := process(downloader)
 	if err != nil {
 		log.Println(err)
+		os.Exit(1)
 	}
 }
