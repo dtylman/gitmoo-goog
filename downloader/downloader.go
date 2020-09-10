@@ -208,7 +208,11 @@ func (d *Downloader) downloadImage(item *LibraryItem, filePath string) error {
 	if strings.HasPrefix(strings.ToLower(item.MediaItem.MimeType), "video") {
 		url = item.MediaItem.BaseUrl + "=dv"
 	} else {
-		url = fmt.Sprintf("%v=w%v-h%v", item.MediaItem.BaseUrl, item.MediaItem.MediaMetadata.Width, item.MediaItem.MediaMetadata.Height)
+		if d.Options.IncludeEXIF {
+			url = fmt.Sprintf("%v=d", item.MediaItem.BaseUrl)
+		} else {
+			url = fmt.Sprintf("%v=w%v-h%v", item.MediaItem.BaseUrl, item.MediaItem.MediaMetadata.Width, item.MediaItem.MediaMetadata.Height)
+		}
 	}
 	output, err := os.Create(filePath)
 	if err != nil {
