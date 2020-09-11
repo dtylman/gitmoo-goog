@@ -233,6 +233,18 @@ func (d *Downloader) downloadImage(item *LibraryItem, filePath string) error {
 		return err
 	}
 
+	// close file to prevent conflicts with writing new timestamp in next step
+	output.Close()
+
+	//If timestamp is availabe, set access time to current timestamp and set modified time to the time the item was first created (not when it was uploaded to Google Photos)
+	t, err := time.Parse(time.RFC3339, item.MediaMetadata.CreationTime)
+	if err == nil {
+		err = os.Chtimes(filePath, time.Now(), t)
+		if err != nil {
+			log.Printf("Warning: Could not write timestamp to '%v': %v", filePath, err)
+		}
+	}
+
 	log.Printf("Downloaded '%v' [saved as '%v'] (%v)", item.FileName, item.UsedFileName, humanize.Bytes(uint64(n)))
 
 	d.stats.UpdateStatsDownloaded(uint64(n), 1)
