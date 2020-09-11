@@ -57,11 +57,15 @@ Usage of ./gitmoo-goog:
   - album
         download only from this album (use google album id)
   -folder string
-        backup folder
+        backup folder (default current working directory)
   -force
         ignore errors, and force working
   -logfile string
         log to this file
+  -credentials-file string
+        filepath to where the credentials file can be found (default 'credentials.json')
+  -token-file string
+        filepath to where the token should be stored (default 'token.json')
   -loop
         loops forever (use as daemon)
   -max int

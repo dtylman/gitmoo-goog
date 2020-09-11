@@ -27,8 +27,7 @@ var options struct {
 }
 
 // Retrieve a token, saves the token, then returns the generated client.
-func getClient(config *oauth2.Config) *http.Client {
-	tokFile := "token.json"
+func getClient(config *oauth2.Config, tokFile string) *http.Client {
 	tok, err := tokenFromFile(tokFile)
 	if err != nil {
 		tok = getTokenFromWeb(config)
@@ -79,7 +78,7 @@ func saveToken(path string, token *oauth2.Token) {
 }
 
 func process(downloader *downloader.Downloader) error {
-	b, err := ioutil.ReadFile("credentials.json")
+	b, err := ioutil.ReadFile(downloader.Options.CredentialsFile)
 	if err != nil {
 		log.Println("Enable photos API here: https://developers.google.com/photos/library/guides/get-started#enable-the-api")
 		return fmt.Errorf("Unable to read client secret file: %v", err)
@@ -90,11 +89,11 @@ func process(downloader *downloader.Downloader) error {
 	if err != nil {
 		return fmt.Errorf("Unable to parse client secret file to config: %v", err)
 	}
-	client := getClient(config)
+	client := getClient(config, downloader.Options.TokenFile)
 	log.Printf("Connecting ...")
 	srv, err := photoslibrary.New(client)
 	if err != nil {
-		return fmt.Errorf("Unable to retrieve Sheets client: %v", err)
+		return fmt.Errorf("Unable to retrieve Google Photos API client: %v", err)
 	}
 	for true {
 		err := downloader.DownloadAll(srv)
@@ -128,6 +127,8 @@ func main() {
 	flag.BoolVar(&downloader.Options.UseFileName, "use-file-name", false, "use file name when uploaded to Google Photos")
 	flag.Float64Var(&downloader.Options.DownloadThrottle, "download-throttle", 0, "rate in KB/sec, to limit downloading of items")
 	flag.IntVar(&downloader.Options.ConcurrentDownloads, "concurrent-downloads", 5, "number of concurrent item downloads")
+	flag.StringVar(&downloader.Options.CredentialsFile, "credentials-file", "credentials.json", "filepath to where the credentials file can be found")
+	flag.StringVar(&downloader.Options.TokenFile, "token-file", "token.json", "filepath to where the token should be stored")
 
 	flag.Parse()
 	if options.logfile != "" {
