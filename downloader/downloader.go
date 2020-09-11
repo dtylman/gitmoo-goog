@@ -241,7 +241,7 @@ func (d *Downloader) downloadImage(item *LibraryItem, filePath string) error {
 	if err == nil {
 		err = os.Chtimes(filePath, time.Now(), t)
 		if err != nil {
-			log.Printf("Warning: Could not write timestamp to '%v': %v", filePath, err)
+			return err;
 		}
 	}
 
