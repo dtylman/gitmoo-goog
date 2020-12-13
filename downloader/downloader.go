@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -208,7 +209,11 @@ func (d *Downloader) downloadImage(item *LibraryItem, filePath string) error {
 	if strings.HasPrefix(strings.ToLower(item.MediaItem.MimeType), "video") {
 		url = item.MediaItem.BaseUrl + "=dv"
 	} else {
-		url = fmt.Sprintf("%v=w%v-h%v", item.MediaItem.BaseUrl, item.MediaItem.MediaMetadata.Width, item.MediaItem.MediaMetadata.Height)
+		if d.Options.IncludeEXIF {
+			url = fmt.Sprintf("%v=d", item.MediaItem.BaseUrl)
+		} else {
+			url = fmt.Sprintf("%v=w%v-h%v", item.MediaItem.BaseUrl, item.MediaItem.MediaMetadata.Width, item.MediaItem.MediaMetadata.Height)
+		}
 	}
 	output, err := os.Create(filePath)
 	if err != nil {
@@ -231,6 +236,18 @@ func (d *Downloader) downloadImage(item *LibraryItem, filePath string) error {
 	n, err := io.Copy(output, rateLimitedReader)
 	if err != nil {
 		return err
+	}
+
+	// close file to prevent conflicts with writing new timestamp in next step
+	output.Close()
+
+	//If timestamp is available, set access time to current timestamp and set modified time to the time the item was first created (not when it was uploaded to Google Photos)
+	t, err := time.Parse(time.RFC3339, item.MediaMetadata.CreationTime)
+	if err == nil {
+		err = os.Chtimes(filePath, time.Now(), t)
+		if err != nil {
+			return errors.New("failed writing timestamp to file: " + err.Error())
+		}
 	}
 
 	log.Printf("Downloaded '%v' [saved as '%v'] (%v)", item.FileName, item.UsedFileName, humanize.Bytes(uint64(n)))

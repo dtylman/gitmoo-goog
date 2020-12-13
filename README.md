@@ -57,11 +57,15 @@ Usage of ./gitmoo-goog:
   - album
         download only from this album (use google album id)
   -folder string
-        backup folder
+        backup folder (default current working directory)
   -force
         ignore errors, and force working
   -logfile string
         log to this file
+  -credentials-file string
+        filepath to where the credentials file can be found (default 'credentials.json')
+  -token-file string
+        filepath to where the token should be stored (default 'token.json')
   -loop
         loops forever (use as daemon)
   -max int
@@ -74,6 +78,8 @@ Usage of ./gitmoo-goog:
         Time format used for folder paths based on https://golang.org/pkg/time/#Time.Format (default "2016/Janurary")
   -use-file-name
         Use file name when uploaded to Google Photos (default off)
+  -include-exif
+        Retain EXIF metadata on downloaded images. Location information is not included because Google does not include it. (default off)
   -download-throttle
         Rate in KB/sec, to limit downloading of items (default off)
   -concurrent-downloads
@@ -83,10 +89,10 @@ Usage of ./gitmoo-goog:
 On Linux, running the following is a good practice:
 
 ```
-$ ./gitmoo-goog -folder archive -logfile gitmoo.log -loop -throttle 45 &
+$ ./gitmoo-goog -folder archive -logfile gitmoo.log -use-file-name -include-exif -loop -throttle 45 &
 ```
 
-This will start the process in background, making an API call every 45 seconds, looping forever on all items and saving them to `{pwd}/archive`. 
+This will start the process in background, making an API call every 45 seconds, looping forever on all items and saving them to `{pwd}/archive`. All images will be downloaded with a filename and metadata as close to original as Google offers through the api.
 
 Logfile will be saved as `gitmoo.log`.
 
@@ -105,3 +111,27 @@ To build you may need to specify that module download mode is using a vendor fol
 ## Testing:
 
 `go test -mod vendor ./...`
+
+## Docker (Linux only)
+
+You can run gitmoo-goog in Docker. At the moment you have to build the image yourself. After cloning the repo run:
+
+```
+$ docker build -t dtylman/gitmoo-goog:latest .
+```
+
+Now run gitmoo-goo in Docker:
+
+```
+$ docker run -v $(pwd):/app --user=$(id -u):$(id -g) dtylman/gitmoo-goog:latest
+```
+
+Replace `$(pwd)` with the location of your storage directory on your computer.
+Within the storage directory gitmoo-goog expects the `credentials.json` and will place all the downloaded files.
+
+The part `--user=$(id -u):$(id -g)` ensures that the downloaded files are owned by the user launching the container.
+
+Configuring additional settings is possible by adding command arguments like so:
+```
+$ docker run -v $(pwd):/app --user=$(id -u):$(id -g) dtylman/gitmoo-goog:latest -loop -throttle 45
+```

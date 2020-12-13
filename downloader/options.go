@@ -9,6 +9,8 @@ type Options struct {
 	FolderFormat string
 	//UseFileName use file name when uploaded to Google Photos
 	UseFileName bool
+	//OriginalFiles retain EXIF metadata on downloaded images. Location information is not included.
+	IncludeEXIF bool
 	//MaxItems how many items to download
 	MaxItems int
 	//number of items to download on per API call
@@ -21,4 +23,8 @@ type Options struct {
 	ConcurrentDownloads int
 	//Google photos AlbumID
 	AlbumID string
+	//CredentialsFile Google API credentials.json file
+	CredentialsFile string
+	//TokenFile Google oauth client token.json file
+	TokenFile string
 }
