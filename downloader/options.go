@@ -21,4 +21,8 @@ type Options struct {
 	ConcurrentDownloads int
 	//Google photos AlbumID
 	AlbumID string
+	//CredentialsFile Google API credentials.json file
+	CredentialsFile string
+	//TokenFile Google oauth client token.json file
+	TokenFile string
 }
