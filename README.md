@@ -95,3 +95,27 @@ Logfile will be saved as `gitmoo.log`.
 Files are created as follows:
 
 `[folder][year][month][day]_[hash].json` and `.jpg`. The `json` file holds the metadata from `google-photos`. 
+
+## Docker (Linux only)
+
+You can run gitmoo-goog in Docker. At the moment you have to build the image yourself. After cloning the repo run:
+
+```
+$ docker build -t dtylman/gitmoo-goog:latest .
+```
+
+Now run gitmoo-goo in Docker:
+
+```
+$ docker run -v $(pwd):/app --user=$(id -u):$(id -g) dtylman/gitmoo-goog:latest
+```
+
+Replace `$(pwd)` with the location of your storage directory on your computer.
+Within the storage directory gitmoo-goog expects the `credentials.json` and will place all the downloaded files.
+
+The part `--user=$(id -u):$(id -g)` ensures that the downloaded files are owned by the user launching the container.
+
+Configuring additional settings is possible by adding command arguments like so:
+```
+$ docker run -v $(pwd):/app --user=$(id -u):$(id -g) dtylman/gitmoo-goog:latest -loop -throttle 45
+```
