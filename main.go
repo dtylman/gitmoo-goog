@@ -125,6 +125,7 @@ func main() {
 	flag.IntVar(&downloader.Options.Throttle, "throttle", 5, "time, in seconds, to wait between API calls")
 	flag.StringVar(&downloader.Options.FolderFormat, "folder-format", filepath.Join("2006", "January"), "time format used for folder paths based on https://golang.org/pkg/time/#Time.Format")
 	flag.BoolVar(&downloader.Options.UseFileName, "use-file-name", false, "use file name when uploaded to Google Photos")
+	flag.BoolVar(&downloader.Options.IncludeEXIF, "include-exif", false, "retain EXIF metadata on downloaded images. Location information is not included.")
 	flag.Float64Var(&downloader.Options.DownloadThrottle, "download-throttle", 0, "rate in KB/sec, to limit downloading of items")
 	flag.IntVar(&downloader.Options.ConcurrentDownloads, "concurrent-downloads", 5, "number of concurrent item downloads")
 	flag.StringVar(&downloader.Options.CredentialsFile, "credentials-file", "credentials.json", "filepath to where the credentials file can be found")
