@@ -6,6 +6,10 @@ A [Google Photos](http://photos.google.com/) backup tool.
 
 It can be used as a daemon to keep in sync with a google-photos account.
 
+## Build
+
+![Go](https://github.com/dtylman/gitmoo-goog/workflows/Go/badge.svg)
+
 ## Downloading and Installing:
 
 Download:
