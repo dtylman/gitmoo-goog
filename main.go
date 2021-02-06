@@ -13,10 +13,11 @@ import (
 
 	"github.com/dtylman/gitmoo-goog/downloader"
 	"github.com/dtylman/gitmoo-goog/version"
+	photoslibrary "github.com/gphotosuploader/googlemirror/api/photoslibrary/v1"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	photoslibrary "google.golang.org/api/photoslibrary/v1"
+
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 

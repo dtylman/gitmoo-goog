@@ -6,8 +6,6 @@ A [Google Photos](http://photos.google.com/) backup tool.
 
 It can be used as a daemon to keep in sync with a google-photos account.
 
-[![CircleCI](https://circleci.com/gh/dtylman/gitmoo-goog.svg?style=svg)](https://circleci.com/gh/dtylman/gitmoo-goog)
-
 ## Downloading and Installing:
 
 Download:

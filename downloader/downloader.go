@@ -18,26 +18,9 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/fujiwara/shapeio"
+	photoslibrary "github.com/gphotosuploader/googlemirror/api/photoslibrary/v1"
 	errgroup "golang.org/x/sync/errgroup"
-	gensupport "google.golang.org/api/gensupport"
-	photoslibrary "google.golang.org/api/photoslibrary/v1"
 )
-
-//LibraryItem Google Photo item and meta data
-type LibraryItem struct {
-	//Google Photos item
-	photoslibrary.MediaItem
-
-	//Actual file name that was used, without a path
-	UsedFileName string
-}
-
-//MarshalJSON Convert LibraryItem to JSON utlizing pre-built Google marshalling
-func (s *LibraryItem) MarshalJSON() ([]byte, error) {
-	type NoMethod LibraryItem
-	raw := NoMethod(*s)
-	return gensupport.MarshalJSON(raw, []string{}, []string{})
-}
 
 // Downloader Struct for downloading photos into managed folders, use factory
 // method `NewDownloader` to create
@@ -136,7 +119,7 @@ func (d *Downloader) getImageFilePath(item *LibraryItem) string {
 	if d.Options.UseFileName {
 		fileName = item.UsedFileName
 		if fileName == "" {
-			fileName = item.FileName
+			fileName = item.Filename
 		}
 
 		fileName = filepath.Join(d.getFolderPath(&item.MediaItem), fileName)
@@ -250,7 +233,7 @@ func (d *Downloader) downloadImage(item *LibraryItem, filePath string) error {
 		}
 	}
 
-	log.Printf("Downloaded '%v' [saved as '%v'] (%v)", item.FileName, item.UsedFileName, humanize.Bytes(uint64(n)))
+	log.Printf("Downloaded '%v' [saved as '%v'] (%v)", item.Filename, item.UsedFileName, humanize.Bytes(uint64(n)))
 
 	d.stats.UpdateStatsDownloaded(uint64(n), 1)
 
@@ -276,7 +259,7 @@ func (d *Downloader) createImage(item *LibraryItem, filePath string) error {
 			return d.downloadImage(item, filePath)
 		})
 	} else {
-		log.Printf("Skipping '%v' [saved as '%v']", item.FileName, item.UsedFileName)
+		log.Printf("Skipping '%v' [saved as '%v']", item.Filename, item.UsedFileName)
 	}
 	return nil
 }
@@ -327,7 +310,7 @@ func (d *Downloader) DownloadAll(svc *photoslibrary.Service) error {
 			d.stats.UpdateStatsTotal(1)
 			err = d.downloadItem(svc, m)
 			if err != nil {
-				log.Printf("Failed to download '%v' [id %v]: %v", m.FileName, m.Id, err)
+				log.Printf("Failed to download '%v' [id %v]: %v", m.Filename, m.Id, err)
 				d.stats.UpdateStatsError(1)
 			}
 

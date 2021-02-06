@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	photoslibrary "google.golang.org/api/photoslibrary/v1"
+	photoslibrary "github.com/gphotosuploader/googlemirror/api/photoslibrary/v1"
 )
 
 // tempPath Create a temporary path (must be removed after)
@@ -88,7 +88,7 @@ func TestCreateFileName(t *testing.T) {
 
 		item := new(LibraryItem)
 		item.MediaMetadata = new(photoslibrary.MediaMetadata)
-		item.FileName = "test.jpg"
+		item.Filename = "test.jpg"
 
 		have := downloader.createFileName(item, 0)
 		want := "8f00b204e9800998ecf8427e"
@@ -124,7 +124,7 @@ func TestCreateFileName(t *testing.T) {
 		item.MediaMetadata.CreationTime = "2019-10-13T17:33:43Z"
 
 		have := downloader.createFileName(item, 0)
-		want := "13_34567890.jpg"
+		want := "13_34567890.jpe"
 
 		if have != want {
 			t.Errorf("downloader.createFileName() = %v; want %v", have, want)
@@ -137,10 +137,10 @@ func TestCreateFileName(t *testing.T) {
 
 		item := new(LibraryItem)
 		item.MediaMetadata = new(photoslibrary.MediaMetadata)
-		item.FileName = "test.jpg"
+		item.Filename = "test.jpg"
 
 		have := downloader.createFileName(item, 0)
-		want := item.FileName
+		want := item.Filename
 
 		if have != want {
 			t.Errorf("downloader.createFileName() = %v; want %v", have, want)
@@ -153,7 +153,7 @@ func TestCreateFileName(t *testing.T) {
 
 		item := new(LibraryItem)
 		item.MediaMetadata = new(photoslibrary.MediaMetadata)
-		item.FileName = "test.jpg"
+		item.Filename = "test.jpg"
 		item.UsedFileName = "test (1).jpg"
 
 		have := downloader.createFileName(item, 0)
@@ -170,7 +170,7 @@ func TestCreateFileName(t *testing.T) {
 
 		item := new(LibraryItem)
 		item.MediaMetadata = new(photoslibrary.MediaMetadata)
-		item.FileName = "test.jpg"
+		item.Filename = "test.jpg"
 
 		have := downloader.createFileName(item, 1)
 		want := "test (1).jpg"
@@ -190,7 +190,7 @@ func TestIsConflictingFilePath(t *testing.T) {
 
 		item := new(LibraryItem)
 		item.MediaMetadata = new(photoslibrary.MediaMetadata)
-		item.FileName = "test.jpg"
+		item.Filename = "test.jpg"
 
 		//Create directory and touch the file
 		path := downloader.getImageFilePath(item)
@@ -216,7 +216,7 @@ func TestIsConflictingFilePath(t *testing.T) {
 
 		item := new(LibraryItem)
 		item.MediaMetadata = new(photoslibrary.MediaMetadata)
-		item.FileName = "test.jpg"
+		item.Filename = "test.jpg"
 
 		if downloader.isConflictingFilePath(item) {
 			t.Errorf("downloader.isConflictingFilePath() = %v; want %v", true, false)
@@ -334,7 +334,7 @@ func TestMediaItemFileName(t *testing.T) {
 	item := new(photoslibrary.MediaItem)
 	json.Unmarshal([]byte(data), item)
 
-	if item.FileName != "IMG_1234.jpg" {
-		t.Errorf("photoslibrary.MediaItem.FileName = %v; want \"IMG_1234.jpg\"", item.FileName)
+	if item.Filename != "IMG_1234.jpg" {
+		t.Errorf("photoslibrary.MediaItem.FileName = %v; want \"IMG_1234.jpg\"", item.Filename)
 	}
 }
