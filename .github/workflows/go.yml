@@ -18,8 +18,38 @@ jobs:
       with:
         go-version: 1.15
 
-    - name: Build
-      run: go build -v ./...
-
     - name: Test
       run: go test -v ./...
+
+    - name: Build
+      if: success()
+      run: 
+        GOOS=window go build -ldflags "-s -w"
+        GOOS=darwin go build -o gitmoo-goog-osx -ldflags "-s -w"
+        go build -ldflags "-s -w"
+        cd installer
+        go build 
+        ./installer
+        cd ..
+        zip gitmoo-goog.zip installer/*.deb gitmoo-goog-osx gitmoo-goog.exe
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: true          
+        
+    - name: Upload Release Asset
+      id: upload-release-asset 
+      uses: actions/upload-release-asset@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: ./gitmoo-goog.zip
+          asset_name: gitmoo-goog.zip
+          asset_content_type: application/zip
