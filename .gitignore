@@ -26,4 +26,4 @@ gitmoo-goog.zip
 
 
 installer/installer
-installer/gitmoo-goog_0.24_amd64.deb
+installer/*.deb

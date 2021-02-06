@@ -23,7 +23,7 @@ jobs:
 
     - name: Build
       if: success()
-      run: 
+      run: |
         GOOS=windows go build -ldflags "-s -w"
         GOOS=darwin go build -o gitmoo-goog-osx -ldflags "-s -w"
         go build -ldflags "-s -w"
