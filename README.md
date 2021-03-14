@@ -62,6 +62,8 @@ Usage of ./gitmoo-goog:
         backup folder (default current working directory)
   -force
         ignore errors, and force working
+  -version
+        at startup, print the gitmoo-goog version
   -logfile string
         log to this file
   -credentials-file string
