@@ -28,7 +28,7 @@ The zip contains Windows, Linux and MAC OS binaries.
 * Click on `Enable the Google Photos API` button
 * Create a new project, name it whatever you like.
 * Write `gitmoo-goog` in the `product name` field, (can be whatever you like)
-* On the `when are you calling from`, choose `Other`, click `Create`.
+* On the `when are you calling from`, choose `Desktop app`, click `Create`.
 * Download the client configuration.
 
 ### Configure gitmoo-goog:

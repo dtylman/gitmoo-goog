@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/dtylman/gitmoo-goog/downloader"
 	"github.com/dtylman/gitmoo-goog/version"
@@ -25,6 +27,7 @@ var options struct {
 	loop         bool
 	logfile      string
 	ignoreerrors bool
+	loopbackPort int
 }
 
 // Retrieve a token, saves the token, then returns the generated client.
@@ -39,12 +42,24 @@ func getClient(config *oauth2.Config, tokFile string) *http.Client {
 
 // Request a token from the web, then returns the retrieved token.
 func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
+	config.RedirectURL = fmt.Sprintf("http://127.0.0.1:%v", options.loopbackPort)
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	fmt.Printf("Go to the following link in your browser then type the "+
 		"authorization code: \n%v\n", authURL)
 
+	server, err := startLoopbackServer()
+	if err != nil {
+		log.Fatalf("Unable to start loopback server: %v", err)
+	}
+
 	var authCode string
-	if _, err := fmt.Scan(&authCode); err != nil {
+	_, err = fmt.Scanln(&authCode)
+
+	// Shutdown server since reading authorization code is complete
+	log.Println("Here")
+	server.Close() //.Shutdown(context.Background())
+
+	if err != nil {
 		log.Fatalf("Unable to read authorization code: %v", err)
 	}
 
@@ -53,6 +68,25 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 		log.Fatalf("Unable to retrieve token from web: %v", err)
 	}
 	return tok
+}
+
+func startLoopbackServer() (*http.Server, error) {
+	handler := func(writer http.ResponseWriter, request *http.Request) {
+		code := request.FormValue("code")
+
+		writer.Header().Add("Content-Type", "text/plain")
+
+		if strings.TrimSpace(code) == "" {
+			writer.WriteHeader(400)
+			io.WriteString(writer, "Unable to retrieve authorization code")
+		} else {
+			fmt.Fprintf(writer, "Copy the following authorization code and paste it into the console: %v", code)
+		}
+	}
+
+	http.HandleFunc("/", handler)
+	server := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%v", options.loopbackPort), Handler: nil}
+	return server, server.ListenAndServe()
 }
 
 // Retrieves a token from a local file.
@@ -131,6 +165,7 @@ func main() {
 	flag.IntVar(&downloader.Options.ConcurrentDownloads, "concurrent-downloads", 5, "number of concurrent item downloads")
 	flag.StringVar(&downloader.Options.CredentialsFile, "credentials-file", "credentials.json", "filepath to where the credentials file can be found")
 	flag.StringVar(&downloader.Options.TokenFile, "token-file", "token.json", "filepath to where the token should be stored")
+	flag.IntVar(&options.loopbackPort, "loopback-port", 8080, "Loopback port for Google authentication process")
 
 	flag.Parse()
 	if options.logfile != "" {
