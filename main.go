@@ -55,9 +55,8 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 	var authCode string
 	_, err = fmt.Scanln(&authCode)
 
-	// Shutdown server since reading authorization code is complete
-	log.Println("Here")
-	server.Close() //.Shutdown(context.Background())
+	// Shutdown loopback server since reading authorization code is complete
+	defer server.Shutdown(context.Background())
 
 	if err != nil {
 		log.Fatalf("Unable to read authorization code: %v", err)
@@ -86,7 +85,11 @@ func startLoopbackServer() (*http.Server, error) {
 
 	http.HandleFunc("/", handler)
 	server := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%v", options.loopbackPort), Handler: nil}
-	return server, server.ListenAndServe()
+	go func() {
+		server.ListenAndServe()
+	}()
+
+	return server, nil
 }
 
 // Retrieves a token from a local file.

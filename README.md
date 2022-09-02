@@ -33,9 +33,9 @@ The zip contains Windows, Linux and MAC OS binaries.
 
 ### Configure gitmoo-goog:
 
-* Copy the downloaded `credentials.json` to the same folder with `gitmoo-goog` .
-* run `gitmoo-goog`, and follow the provided link:
-* Sign in, and click `Allow`
+* Copy the downloaded `credentials.json` to the same folder with `gitmoo-goog`.
+* run `gitmoo-goog`, and follow the provided link
+* Sign in, and click `Allow`.
 * Copy the `token` and paste it in the cli.
 * `gitmoo-goog` will authorize and start downloading content. 
 ```
