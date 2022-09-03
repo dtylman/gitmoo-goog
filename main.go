@@ -29,6 +29,7 @@ var options struct {
 	ignoreerrors bool
 	loopbackPort int
 }
+var authCodeChan chan string
 
 // Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config, tokFile string) *http.Client {
@@ -47,21 +48,15 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 	fmt.Printf("Go to the following link in your browser then type the "+
 		"authorization code: \n%v\n", authURL)
 
+	// Setup channel to receive code and start up loopback server to receive it
+	authCodeChan = make(chan string)
 	server, err := startLoopbackServer()
 	if err != nil {
 		log.Fatalf("Unable to start loopback server: %v", err)
 	}
-
-	var authCode string
-	_, err = fmt.Scanln(&authCode)
-
-	// Shutdown loopback server since reading authorization code is complete
 	defer server.Shutdown(context.Background())
 
-	if err != nil {
-		log.Fatalf("Unable to read authorization code: %v", err)
-	}
-
+	authCode := <-authCodeChan
 	tok, err := config.Exchange(oauth2.NoContext, authCode)
 	if err != nil {
 		log.Fatalf("Unable to retrieve token from web: %v", err)
@@ -77,14 +72,18 @@ func startLoopbackServer() (*http.Server, error) {
 
 		if strings.TrimSpace(code) == "" {
 			writer.WriteHeader(400)
-			io.WriteString(writer, "Unable to retrieve authorization code")
+			io.WriteString(writer, "Unable to retrieve authorization code.")
 		} else {
-			fmt.Fprintf(writer, "Copy the following authorization code and paste it into the console: %v", code)
+			io.WriteString(writer, "This browser window can be now closed and continue to follow instructions in cli.")
+			authCodeChan <- code
 		}
 	}
 
 	http.HandleFunc("/", handler)
 	server := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%v", options.loopbackPort), Handler: nil}
+	server.RegisterOnShutdown(func() {
+		close(authCodeChan)
+	})
 	go func() {
 		server.ListenAndServe()
 	}()
