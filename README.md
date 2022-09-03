@@ -86,6 +86,8 @@ Usage of ./gitmoo-goog:
         Rate in KB/sec, to limit downloading of items (default off)
   -concurrent-downloads
         Number of concurrent item downloads (default 5)
+  -loopback-port
+        Port number bound on `127.0.0.1` to receive auth code during authentication (default 8080)
 ```
 
 On Linux, running the following is a good practice:
