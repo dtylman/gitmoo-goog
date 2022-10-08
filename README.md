@@ -28,16 +28,16 @@ The zip contains Windows, Linux and MAC OS binaries.
 * Click on `Enable the Google Photos API` button
 * Create a new project, name it whatever you like.
 * Write `gitmoo-goog` in the `product name` field, (can be whatever you like)
-* On the `when are you calling from`, choose `Other`, click `Create`.
+* On the `when are you calling from`, choose `Desktop app`, click `Create`.
 * Download the client configuration.
 
 ### Configure gitmoo-goog:
 
-* Copy the downloaded `credentials.json` to the same folder with `gitmoo-goog` .
-* run `gitmoo-goog`, and follow the provided link:
-* Sign in, and click `Allow`
-* Copy the `token` and paste it in the cli.
-* `gitmoo-goog` will authorize and start downloading content. 
+* Copy the downloaded `credentials.json` to the same folder with `gitmoo-goog`.
+* Run `gitmoo-goog`, and follow the provided link.
+* Sign in, and click `Allow`.
+* You will be redirected to a local address and it `This browser window can be now closed...`.
+* `gitmoo-goog` will authorize and start downloading content (authorization code will be automically received). 
 ```
 $ ./gitmoo-goog
 2018/09/12 10:18:07 This is gitmoo-goog ver 0.1
@@ -88,6 +88,8 @@ Usage of ./gitmoo-goog:
         Rate in KB/sec, to limit downloading of items (default off)
   -concurrent-downloads
         Number of concurrent item downloads (default 5)
+  -loopback-port
+        Port number bound on `127.0.0.1` to receive auth code during authentication (default 8080)
 ```
 
 On Linux, running the following is a good practice:

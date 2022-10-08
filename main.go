@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/dtylman/gitmoo-goog/downloader"
 	"github.com/dtylman/gitmoo-goog/version"
@@ -26,7 +28,9 @@ var options struct {
 	logfile      string
 	ignoreerrors bool
 	version      bool
+	loopbackPort int
 }
+var authCodeChan chan string
 
 // Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config, tokFile string) *http.Client {
@@ -40,20 +44,52 @@ func getClient(config *oauth2.Config, tokFile string) *http.Client {
 
 // Request a token from the web, then returns the retrieved token.
 func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
+	config.RedirectURL = fmt.Sprintf("http://127.0.0.1:%v", options.loopbackPort)
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	fmt.Printf("Go to the following link in your browser then type the "+
 		"authorization code: \n%v\n", authURL)
 
-	var authCode string
-	if _, err := fmt.Scan(&authCode); err != nil {
-		log.Fatalf("Unable to read authorization code: %v", err)
+	// Setup channel to receive code and start up loopback server to receive it
+	authCodeChan = make(chan string)
+	server, err := startLoopbackServer()
+	if err != nil {
+		log.Fatalf("Unable to start loopback server: %v", err)
 	}
+	defer server.Shutdown(context.Background())
 
+	authCode := <-authCodeChan
 	tok, err := config.Exchange(oauth2.NoContext, authCode)
 	if err != nil {
 		log.Fatalf("Unable to retrieve token from web: %v", err)
 	}
 	return tok
+}
+
+func startLoopbackServer() (*http.Server, error) {
+	handler := func(writer http.ResponseWriter, request *http.Request) {
+		code := request.FormValue("code")
+
+		writer.Header().Add("Content-Type", "text/plain")
+
+		if strings.TrimSpace(code) == "" {
+			writer.WriteHeader(400)
+			io.WriteString(writer, "Unable to retrieve authorization code.")
+		} else {
+			io.WriteString(writer, "This browser window can be now closed and continue to follow instructions in cli.")
+			authCodeChan <- code
+		}
+	}
+
+	http.HandleFunc("/", handler)
+	server := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%v", options.loopbackPort), Handler: nil}
+	server.RegisterOnShutdown(func() {
+		close(authCodeChan)
+	})
+	go func() {
+		server.ListenAndServe()
+	}()
+
+	return server, nil
 }
 
 // Retrieves a token from a local file.
@@ -132,6 +168,7 @@ func main() {
 	flag.IntVar(&downloader.Options.ConcurrentDownloads, "concurrent-downloads", 5, "number of concurrent item downloads")
 	flag.StringVar(&downloader.Options.CredentialsFile, "credentials-file", "credentials.json", "filepath to where the credentials file can be found")
 	flag.StringVar(&downloader.Options.TokenFile, "token-file", "token.json", "filepath to where the token should be stored")
+	flag.IntVar(&options.loopbackPort, "loopback-port", 8080, "Loopback port for Google authentication process")
 
 	flag.Parse()
 	if options.logfile != "" {
