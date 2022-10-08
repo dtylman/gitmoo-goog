@@ -27,6 +27,7 @@ var options struct {
 	loop         bool
 	logfile      string
 	ignoreerrors bool
+	version      bool
 	loopbackPort int
 }
 var authCodeChan chan string
@@ -151,10 +152,10 @@ func process(downloader *downloader.Downloader) error {
 func main() {
 	workingDirectory, _ := os.Getwd()
 	downloader := downloader.NewDownloader()
-	log.Println("This is gitmoo-goog ver", version.Version)
 	flag.BoolVar(&options.loop, "loop", false, "loops forever (use as daemon)")
 	flag.BoolVar(&options.ignoreerrors, "force", false, "ignore errors, and force working")
 	flag.StringVar(&options.logfile, "logfile", "", "log to this file")
+	flag.BoolVar(&options.version, "version", false, "at startup, print the gitmoo-goog version")
 	flag.StringVar(&downloader.Options.BackupFolder, "folder", workingDirectory, "backup folder")
 	flag.StringVar(&downloader.Options.AlbumID, "album", "", "download only from this album (use google album id)")
 	flag.IntVar(&downloader.Options.MaxItems, "max", math.MaxInt32, "max items to download")
@@ -182,6 +183,11 @@ func main() {
 			}
 		}()
 	}
+
+	if options.version {
+		log.Println("This is gitmoo-goog ver", version.Version)
+	}
+
 	err := process(downloader)
 	if err != nil {
 		log.Println(err)
