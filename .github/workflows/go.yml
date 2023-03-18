@@ -28,12 +28,12 @@ jobs:
       run: |
         GOOS=windows go build -ldflags "-s -w"
         GOOS=darwin go build -o gitmoo-goog-osx -ldflags "-s -w"
-        go build -ldflags "-s -w"
+        go build -ldflags "-s -w" -o gitmoo-goog
         cd installer
         go build
         ./installer
         cd ..
-        zip gitmoo-goog.zip installer/*.deb gitmoo-goog-osx gitmoo-goog.exe
+        zip gitmoo-goog.zip installer/*.deb gitmoo-goog gitmoo-goog-osx gitmoo-goog.exe
 
     - name: Create Release
       id: create_release
