@@ -21,7 +21,7 @@ jobs:
         go-version: 1.15
 
     - name: Test
-      run: go test -v ./...
+      run: go test -v ./downloader # There is only a test in this folder
 
     - name: Build
       if: success()
