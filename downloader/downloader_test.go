@@ -3,6 +3,7 @@ package downloader
 import (
 	"encoding/json"
 	"io/ioutil"
+	"mime"
 	"os"
 	"path/filepath"
 	"testing"
@@ -124,7 +125,9 @@ func TestCreateFileName(t *testing.T) {
 		item.MediaMetadata.CreationTime = "2019-10-13T17:33:43Z"
 
 		have := downloader.createFileName(item, 0)
-		want := "13_34567890.jpe"
+		// Extensions can vary by system and will just defer to that for the correct extension
+		ext, _ := mime.ExtensionsByType(item.MimeType)
+		want := "13_34567890" + ext[0]
 
 		if have != want {
 			t.Errorf("downloader.createFileName() = %v; want %v", have, want)
