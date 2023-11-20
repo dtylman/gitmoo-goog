@@ -260,6 +260,7 @@ func (d *Downloader) createImage(item *LibraryItem, filePath string) error {
 		})
 	} else {
 		log.Printf("Skipping '%v' [saved as '%v']", item.Filename, item.UsedFileName)
+		d.stats.UpdateStatsSkipped(1)
 	}
 	return nil
 }
@@ -331,11 +332,11 @@ func (d *Downloader) DownloadAll(svc *photoslibrary.Service) error {
 		}
 
 		if hasMore {
-			log.Printf("Processed: %v, Downloaded: %v, Errors: %v, Total Size: %v", d.stats.Total, d.stats.Downloaded, d.stats.Errors, humanize.Bytes(d.stats.TotalSize))
+			log.Printf("Processed: %v, Downloaded: %v, Skipped: %v, Errors: %v, Total Size: %v", d.stats.Total, d.stats.Downloaded, d.stats.Skipped, d.stats.Errors, humanize.Bytes(d.stats.TotalSize))
 			time.Sleep(sleepTime)
 		}
 	}
 
-	log.Printf("Finished: %v, Downloaded: %v, Errors: %v, Total Size: %v", d.stats.Total, d.stats.Downloaded, d.stats.Errors, humanize.Bytes(d.stats.TotalSize))
+	log.Printf("Finished: %v, Downloaded: %v, Skipped: %v, Errors: %v, Total Size: %v", d.stats.Total, d.stats.Downloaded, d.stats.Skipped, d.stats.Errors, humanize.Bytes(d.stats.TotalSize))
 	return nil
 }
